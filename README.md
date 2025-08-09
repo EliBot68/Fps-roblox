@@ -1,8 +1,97 @@
-# 🎯 Rival Clash - Enterprise FPS Game
+# 🎯 Rival Clash FPS - Enterprise-Level Fix & Enhancement Roadmap
 
 [![Roblox](https://img.shields.io/badge/Platform-Roblox-brightgreen)](https://www.roblox.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-success)](https://github.com)
+[![Status](https://img.shields.io/badge/Status-Under%20Enterprise%20Optimization-yellow)](https://github.com)
+
+**Project Health Score**: 74/100 → **Target**: 90+
+
+---
+
+## 🚀 Phase 1: Immediate Critical Fixes (0–7 Days)
+**Goal**: Lock down security, fix exploit vectors, reduce CPU load
+
+- [ ] **Implement authoritative weapon fire rate control** with server-side cooldown tracking (WeaponServer.lua)
+- [ ] **Add global RemoteEvent rate limiting** using token bucket algorithm (RateLimiter module)
+- [ ] **Remove per-frame workspace scans**, replace with cached incremental counters (EnterpriseOptimization.server.lua)
+- [ ] **Introduce DataStore save queue** with debounce and exponential backoff (DataStore.server.lua)
+- [ ] **Centralize client Heartbeat event listener cleanup** with connection lifecycle manager (ClientManager, WeaponClient, CombatClient)
+- [ ] **Add server-side validation** for all critical RemoteEvents (fire, reload, teleport, weapon switch)
+- [ ] **Add temporary disconnect/mute logic** for players violating rate limits
+
+---
+
+## 🔧 Phase 2: Performance & Network Optimization (7–30 Days)
+**Goal**: Reduce server CPU usage, optimize bandwidth, improve client FPS
+
+- [ ] **Consolidate Heartbeat listeners** with a Scheduler module batching tasks into 10Hz and 2Hz tiers
+- [ ] **Pool muzzle flash, hit spark, and teleport effects**; reuse instead of spawning new objects each time
+- [ ] **Implement network batching and delta compression** for stat/UI updates (0.25s windows)
+- [ ] **Use ContentProvider:PreloadAsync** for weapon models and sounds during loading screen
+- [ ] **Implement spatial partitioning** for event replication (Interest Zones) to reduce unnecessary updates
+- [ ] **Replace redundant WaitForChild calls** with cached upvalues on hot paths
+- [ ] **Merge static terrain parts** and assign proper CollisionGroups for performance
+
+---
+
+## 🛡️ Phase 3: Security Hardening & Anti-Cheat (30–60 Days)
+**Goal**: Harden against exploits and cheating
+
+- [ ] **Implement HMAC signing** on economic transactions and replay summary packets for tamper detection
+- [ ] **Introduce server-side clamp** for shot vector deviations based on last camera snapshot
+- [ ] **Add teleport whitelist and rate validation**
+- [ ] **Add server-side speed checks** with position delta vs physics envelope
+- [ ] **Add behavior anomaly detection prototype** using rolling z-scores (statistical outlier detection)
+
+---
+
+## 🏗️ Phase 4: Architectural & Code Quality Improvements (60–90 Days)
+**Goal**: Increase maintainability, modularity, and scalability
+
+- [ ] **Fully separate Core/Domain/Infrastructure layers** with explicit boundaries
+- [ ] **Refactor cross-cutting concerns** into reusable modules (RateLimiter, Logging, Metrics)
+- [ ] **Normalize naming conventions** (verbs for actions, nouns for states)
+- [ ] **Add type annotations (Luau)** for critical tables and state variables
+- [ ] **Remove duplicated code**, consolidate similar logic in shared utilities
+- [ ] **Introduce unit & integration tests** for critical modules, especially RemoteEvent handling
+- [ ] **Setup CI/CD pipeline** with Stylua linting, static analysis, and deploy gating
+
+---
+
+## 📊 Phase 5: Monitoring, Automation & Continuous Improvement (90+ Days)
+**Goal**: Proactive health and abuse detection, developer velocity
+
+- [ ] **Deploy real-time dashboard** showing latency, memory usage, event rates, and abuse flags
+- [ ] **Automate test harness** with load simulation and regression tests for remotes
+- [ ] **Integrate anomaly detection hooks** for behavior outliers
+- [ ] **Document API, onboarding, and style guides** in a centralized portal
+- [ ] **Set up automated alerts** for rate-limit violations, currency anomalies, and event flooding
+
+---
+
+## 📈 Progress Tracking
+
+### Current Status: **Phase 1 - Starting Implementation**
+
+**Last Updated**: August 9, 2025  
+**Next Review**: Weekly progress check  
+**Team Focus**: Critical security fixes and performance bottlenecks
+
+---
+
+## 🎯 Success Metrics
+
+- **Security**: Zero exploitable RemoteEvent vulnerabilities
+- **Performance**: Server FPS >45 with 50+ players, <100ms shot latency
+- **Stability**: <0.1% error rate, proper memory management
+- **Code Quality**: 90+ maintainability score, full test coverage
+- **Network**: <20KB/s bandwidth per player during combat
+
+---
+
+**Enterprise Audit Report**: [ENTERPRISE_PROJECT_HEALTH_AUDIT.md](ENTERPRISE_PROJECT_HEALTH_AUDIT.md)
+
+---
 
 > A comprehensive, enterprise-level first-person shooter built for Roblox with advanced systems for competitive gameplay, real-time analytics, and scalable architecture.
 
