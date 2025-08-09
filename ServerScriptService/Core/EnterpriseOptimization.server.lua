@@ -46,15 +46,32 @@ end
 
 -- Start continuous performance monitoring
 function EnterpriseOptimization.StartPerformanceMonitoring()
+	-- Cache for workspace part count to avoid expensive scans
+	local lastPartCountUpdate = 0
+	local PART_COUNT_UPDATE_INTERVAL = 5 -- Update part count only every 5 seconds
+	
 	RunService.Heartbeat:Connect(function()
-		-- Update metrics every frame
-		performanceMetrics.partCount = #workspace:GetPartBoundsInBox(CFrame.new(), Vector3.new(math.huge, math.huge, math.huge))
+		-- Update player count every frame (cheap operation)
 		performanceMetrics.playerCount = #Players:GetPlayers()
 		
+		-- Update part count only every 5 seconds (expensive operation)
+		local currentTime = tick()
+		if currentTime - lastPartCountUpdate > PART_COUNT_UPDATE_INTERVAL then
+			-- Use more efficient workspace scanning
+			local partCount = 0
+			for _, obj in pairs(workspace:GetDescendants()) do
+				if obj:IsA("BasePart") then
+					partCount = partCount + 1
+				end
+			end
+			performanceMetrics.partCount = partCount
+			lastPartCountUpdate = currentTime
+		end
+		
 		-- Cleanup check every interval
-		if tick() - performanceMetrics.lastCleanup > CLEANUP_INTERVAL then
+		if currentTime - performanceMetrics.lastCleanup > CLEANUP_INTERVAL then
 			EnterpriseOptimization.PerformCleanup()
-			performanceMetrics.lastCleanup = tick()
+			performanceMetrics.lastCleanup = currentTime
 		end
 		
 		-- Emergency cleanup if too many parts

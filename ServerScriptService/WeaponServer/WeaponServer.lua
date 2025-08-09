@@ -16,11 +16,16 @@ local Modules = WeaponSystem:WaitForChild("Modules")
 local WeaponDefinitions = require(Modules:WaitForChild("WeaponDefinitions"))
 local WeaponUtils = require(Modules:WaitForChild("WeaponUtils"))
 
+-- Import enterprise rate limiting
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local RateLimiter = require(Shared:WaitForChild("RateLimiter"))
+
 local WeaponServer = {}
 
 -- Player weapon states
 local PlayerWeapons = {} -- [UserId] = {Primary, Secondary, Melee, CurrentSlot, Ammo}
 local PlayerCooldowns = {} -- [UserId] = {LastFire, LastReload}
+local PlayerRateLimiters = {} -- [UserId] = {FireLimiter, ReloadLimiter, SwitchLimiter}
 
 -- RemoteEvents
 local RemoteEvents = Instance.new("Folder")
@@ -75,6 +80,13 @@ function WeaponServer.InitializePlayer(player: Player)
 		LastReload = 0
 	}
 	
+	-- Initialize enterprise rate limiters
+	PlayerRateLimiters[userId] = {
+		FireLimiter = RateLimiter.new(30, 5),      -- 30 shots max, refill 5/sec (300 RPM burst)
+		ReloadLimiter = RateLimiter.new(10, 0.5),   -- 10 reloads max, refill 0.5/sec
+		SwitchLimiter = RateLimiter.new(20, 2)      -- 20 switches max, refill 2/sec
+	}
+	
 	-- Send initial weapon state to client
 	WeaponStateRemote:FireClient(player, PlayerWeapons[userId])
 	
@@ -86,6 +98,7 @@ function WeaponServer.CleanupPlayer(player: Player)
 	local userId = player.UserId
 	PlayerWeapons[userId] = nil
 	PlayerCooldowns[userId] = nil
+	PlayerRateLimiters[userId] = nil
 end
 
 -- Handle weapon firing
@@ -95,8 +108,21 @@ function WeaponServer.HandleFireWeapon(player: Player, weaponId: string, originC
 	
 	-- Validate player data
 	local playerWeapons = PlayerWeapons[userId]
-	if not playerWeapons then
+	local playerLimiters = PlayerRateLimiters[userId]
+	if not playerWeapons or not playerLimiters then
 		warn("No weapon data for player:", player.Name)
+		return
+	end
+	
+	-- Enterprise rate limiting - Check if player is muted
+	if RateLimiter.isMuted(playerLimiters.FireLimiter) then
+		-- Player is temporarily muted due to excessive violations
+		return
+	end
+	
+	-- Enterprise rate limiting - Consume fire token
+	if not RateLimiter.consume(playerLimiters.FireLimiter, 1) then
+		warn("Fire rate limit exceeded for player:", player.Name, "Status:", RateLimiter.getStatus(playerLimiters.FireLimiter))
 		return
 	end
 	
@@ -260,7 +286,19 @@ function WeaponServer.HandleReloadWeapon(player: Player, weaponId: string)
 	
 	-- Validate player data
 	local playerWeapons = PlayerWeapons[userId]
-	if not playerWeapons then return end
+	local playerLimiters = PlayerRateLimiters[userId]
+	if not playerWeapons or not playerLimiters then return end
+	
+	-- Enterprise rate limiting - Check reload limiter
+	if RateLimiter.isMuted(playerLimiters.ReloadLimiter) then
+		return -- Player temporarily muted
+	end
+	
+	-- Enterprise rate limiting - Consume reload token
+	if not RateLimiter.consume(playerLimiters.ReloadLimiter, 1) then
+		warn("Reload rate limit exceeded for player:", player.Name)
+		return
+	end
 	
 	-- Get weapon configuration
 	local weapon = WeaponDefinitions.GetWeapon(weaponId)
@@ -318,7 +356,19 @@ function WeaponServer.HandleSwitchWeapon(player: Player, slot: string)
 	
 	-- Validate player data
 	local playerWeapons = PlayerWeapons[userId]
-	if not playerWeapons then return end
+	local playerLimiters = PlayerRateLimiters[userId]
+	if not playerWeapons or not playerLimiters then return end
+	
+	-- Enterprise rate limiting - Check switch limiter
+	if RateLimiter.isMuted(playerLimiters.SwitchLimiter) then
+		return -- Player temporarily muted
+	end
+	
+	-- Enterprise rate limiting - Consume switch token
+	if not RateLimiter.consume(playerLimiters.SwitchLimiter, 1) then
+		warn("Weapon switch rate limit exceeded for player:", player.Name)
+		return
+	end
 	
 	-- Validate slot
 	if not playerWeapons[slot] then return end

@@ -663,10 +663,19 @@ end
 
 -- Cleanup function
 function ClientManager.Cleanup()
+	-- Disconnect all RemoteEvent connections
 	for name, connection in pairs(remoteConnections) do
 		connection:Disconnect()
 	end
 	remoteConnections = {}
+	
+	-- Disconnect all RunService connections
+	for i, connection in ipairs(connections) do
+		connection:Disconnect()
+	end
+	connections = {}
+	
+	print("[ClientManager] ✓ All connections cleaned up")
 end
 
 -- Initialize when script loads
