@@ -235,14 +235,37 @@ function PracticeMapManager.CreateWeaponPads(practiceMap)
 		detector.Anchored = true
 		detector.Parent = weaponPad
 		
-		-- Connect touch event
+		-- Connect touch event with debugging
 		detector.Touched:Connect(function(hit)
+			print("[PracticeMapManager] 🔥 WEAPON PAD TOUCHED! 🔥")
+			print("[PracticeMapManager] Hit:", hit.Name, "Parent:", hit.Parent.Name)
+			print("[PracticeMapManager] Weapon ID:", weaponId)
+			
 			local character = hit.Parent
 			local humanoid = character:FindFirstChild("Humanoid")
 			local player = Players:GetPlayerFromCharacter(character)
 			
+			print("[PracticeMapManager] Character:", character and character.Name or "nil")
+			print("[PracticeMapManager] Humanoid:", humanoid and "found" or "nil")
+			print("[PracticeMapManager] Player:", player and player.Name or "nil")
+			
 			if player and humanoid then
+				print("[PracticeMapManager] ✅ Valid player detected, calling GiveWeapon...")
+				
+				-- Add visual feedback to the pad
+				task.spawn(function()
+					local originalColor = weaponPad.Color
+					for i = 1, 3 do
+						weaponPad.Color = Color3.new(1, 1, 1) -- Flash white
+						task.wait(0.1)
+						weaponPad.Color = originalColor
+						task.wait(0.1)
+					end
+				end)
+				
 				PracticeMapManager.GiveWeapon(player, weaponId)
+			else
+				print("[PracticeMapManager] ❌ Invalid touch - not a valid player")
 			end
 		end)
 		
@@ -434,37 +457,86 @@ function PracticeMapManager.CreateReturnPortal(practiceMap)
 	end)
 end
 
--- Give weapon to player using new weapon system
+-- Give weapon to player using enterprise service locator pattern
 function PracticeMapManager.GiveWeapon(player, weaponId)
-	-- Use new weapon system remote events
-	local RemoteRoot = ReplicatedStorage:WaitForChild("WeaponEvents")
-	local switchWeaponRemote = RemoteRoot:FindFirstChild("SwitchWeapon")
+	print("[PracticeMapManager] GiveWeapon called for player:", player.Name, "weapon:", weaponId)
 	
-	-- Get weapon configuration from new system
-	local weapon = WeaponDefinitions.GetWeapon(weaponId)
-	if not weapon then
-		warn("Invalid weapon ID:", weaponId)
-		return
-	end
-	
-	-- Switch to the appropriate weapon slot
-	if switchWeaponRemote then
-		switchWeaponRemote:FireServer(weapon.Slot)
-	end
-	
-	-- Visual feedback
-	local UIEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
-	if UIEvents then
-		UIEvents = UIEvents:FindFirstChild("UIEvents")
-		if UIEvents then
-			local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
-			if notificationRemote then
-				notificationRemote:FireClient(player, "🎯 Selected " .. weapon.Name, "Slot: " .. weapon.Slot, 3)
-			end
+	local success, error = pcall(function()
+		-- Get weapon configuration 
+		local weapon = WeaponDefinitions.GetWeapon(weaponId)
+		if not weapon then
+			error("Invalid weapon ID: " .. weaponId)
+			return
 		end
-	end
+		
+		print("[PracticeMapManager] Found weapon:", weapon.Name, "Category:", weapon.Category)
+		
+		-- Use injected WeaponServer dependency (provided by ServiceLocator)
+		local WeaponServer = PracticeMapManager.WeaponServer
+		if not WeaponServer then
+			-- Fallback to direct require if not injected (backward compatibility)
+			WeaponServer = require(game.ServerScriptService.WeaponServer.WeaponServer)
+			Logging.Warn("PracticeMapManager", "Using fallback WeaponServer require - dependency injection not set up")
+		end
+		
+		-- Determine slot based on weapon category
+		local slot = "Primary" -- Default
+		if weapon.Category == "Pistol" or weapon.Category == "Secondary" then
+			slot = "Secondary"
+		elseif weapon.Category == "Melee" or weapon.Category == "Knife" then
+			slot = "Melee"
+		end
+		
+		print("[PracticeMapManager] Assigning weapon to slot:", slot)
+		
+		-- Create loadout with just this weapon
+		local loadout = {}
+		loadout[slot] = weaponId
+		
+		-- Set the weapon in player's loadout
+		WeaponServer.SetPlayerLoadout(player, loadout)
+		
+		-- Switch to the weapon slot
+		local WeaponEvents = ReplicatedStorage:WaitForChild("WeaponEvents")
+		local SwitchWeaponRemote = WeaponEvents:WaitForChild("SwitchWeapon")
+		SwitchWeaponRemote:FireClient(player, slot)
+		
+		print("[PracticeMapManager] Weapon equipped successfully:", weapon.Name, "in slot:", slot)
+		
+		-- Visual feedback notification
+		local success2, error2 = pcall(function()
+			local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
+			local UIEvents = RemoteRoot:FindFirstChild("UIEvents")
+			if UIEvents then
+				local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
+				if notificationRemote then
+					notificationRemote:FireClient(player, "🎯 Equipped " .. weapon.Name, "Slot: " .. slot .. " | Ready to use!", 3)
+				end
+			end
+		end)
+		
+		if not success2 then
+			print("[PracticeMapManager] Warning: Could not send notification:", error2)
+		end
+		
+		Logging.Info("PracticeMapManager", player.Name .. " equipped weapon: " .. weaponId .. " (" .. weapon.Name .. ") in slot: " .. slot)
+	end)
 	
-	Logging.Info("PracticeMapManager", player.Name .. " selected " .. weaponId .. " (" .. weapon.Name .. ")")
+	if not success then
+		warn("[PracticeMapManager] Error in GiveWeapon:", error)
+		
+		-- Send error notification to player
+		local success3, error3 = pcall(function()
+			local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
+			local UIEvents = RemoteRoot:FindFirstChild("UIEvents")
+			if UIEvents then
+				local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
+				if notificationRemote then
+					notificationRemote:FireClient(player, "❌ Weapon Error", "Failed to equip weapon: " .. tostring(error), 3)
+				end
+			end
+		end)
+	end
 end
 
 -- Teleport player to practice map
@@ -586,10 +658,8 @@ function PracticeMapManager.Initialize()
 		PracticeMapManager.ReturnToLobby(player)
 	end)
 	
-	-- Connect weapon selection event
-	selectWeaponRemote.OnServerEvent:Connect(function(player, weaponId)
-		PracticeMapManager.GiveWeapon(player, weaponId)
-	end)
+	-- Note: SelectWeapon is handled directly by weapon pads touching
+	-- This prevents circular references and ensures direct weapon assignment
 	
 	Logging.Info("PracticeMapManager", "Practice map system initialized")
 end

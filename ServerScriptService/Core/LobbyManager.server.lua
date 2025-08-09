@@ -173,14 +173,14 @@ function LobbyManager.HandleTouch(hit, statusLabel)
 	statusLabel.Text = "TELEPORTING " .. player.Name:upper()
 	statusLabel.TextColor3 = Color3.new(1, 1, 0)
 	
-	-- Simple teleport attempt
+	-- Enterprise teleport execution with service locator pattern
 	task.spawn(function()
 		task.wait(0.5)
 		
 		print("[LobbyManager] Executing teleport...")
 		
 		local success, error = pcall(function()
-			print("[LobbyManager] Teleporting player directly...")
+			print("[LobbyManager] Teleporting player using enterprise services...")
 			
 			-- Direct teleport implementation (avoiding require issue)
 			if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
@@ -188,28 +188,40 @@ function LobbyManager.HandleTouch(hit, statusLabel)
 				return false
 			end
 			
-			-- Teleport to practice area (same position as PracticeMapManager uses)
-			local humanoidRootPart = player.Character.HumanoidRootPart
-			local practicePosition = Vector3.new(1000, 55, 1000) -- Practice spawn position
-			humanoidRootPart.CFrame = CFrame.new(practicePosition)
-			
-			print("[LobbyManager] Player", player.Name, "teleported to practice area at", practicePosition)
-			
-			-- Send notification using remote events
-			local success2, error2 = pcall(function()
-				local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
-				local UIEvents = RemoteRoot:WaitForChild("UIEvents")
-				local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
-				if notificationRemote then
-					notificationRemote:FireClient(player, "🎯 Welcome to Practice Range!", "You have been teleported to the practice area!", 5)
+			-- Use injected PracticeMapManager dependency (provided by ServiceLocator)
+			local PracticeManager = LobbyManager.PracticeMapManager
+			if PracticeManager and PracticeManager.TeleportToPractice then
+				-- Use enterprise service pattern
+				print("[LobbyManager] Using injected PracticeMapManager service")
+				local result = PracticeManager.TeleportToPractice(player)
+				return result
+			else
+				-- Fallback to direct teleport for backward compatibility
+				print("[LobbyManager] Using fallback direct teleport - service injection not set up")
+				
+				-- Teleport to practice area (same position as PracticeMapManager uses)
+				local humanoidRootPart = player.Character.HumanoidRootPart
+				local practicePosition = Vector3.new(1000, 55, 1000) -- Practice spawn position
+				humanoidRootPart.CFrame = CFrame.new(practicePosition)
+				
+				print("[LobbyManager] Player", player.Name, "teleported to practice area at", practicePosition)
+				
+				-- Send notification using remote events
+				local success2, error2 = pcall(function()
+					local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
+					local UIEvents = RemoteRoot:WaitForChild("UIEvents")
+					local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
+					if notificationRemote then
+						notificationRemote:FireClient(player, "🎯 Welcome to Practice Range!", "You have been teleported to the practice area!", 5)
+					end
+				end)
+				
+				if not success2 then
+					print("[LobbyManager] Warning: Could not send notification:", error2)
 				end
-			end)
-			
-			if not success2 then
-				print("[LobbyManager] Warning: Could not send notification:", error2)
+				
+				return true
 			end
-			
-			return true
 		end)
 		
 		if success then
