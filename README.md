@@ -40,11 +40,11 @@
 ## 🔧 Phase 2: Performance & Network Optimization (7–30 Days)
 **Goal**: Reduce server CPU usage, optimize bandwidth, improve client FPS
 
-- [ ] **Consolidate Heartbeat listeners** with a Scheduler module batching tasks into 10Hz and 2Hz tiers
-- [ ] **Pool muzzle flash, hit spark, and teleport effects**; reuse instead of spawning new objects each time
-- [ ] **Implement network batching and delta compression** for stat/UI updates (0.25s windows)
-- [ ] **Use ContentProvider:PreloadAsync** for weapon models and sounds during loading screen
-- [ ] **Implement spatial partitioning** for event replication (Interest Zones) to reduce unnecessary updates
+- [x] **Consolidate Heartbeat listeners** with a Scheduler module batching tasks into 10Hz and 2Hz tiers ✅
+- [x] **Pool muzzle flash, hit spark, and teleport effects**; reuse instead of spawning new objects each time ✅
+- [x] **Implement network batching and delta compression** for stat/UI updates (0.25s windows) ✅
+- [x] **Use ContentProvider:PreloadAsync** for weapon models and sounds during loading screen ✅
+- [x] **Implement spatial partitioning** for event replication (Interest Zones) to reduce unnecessary updates ✅
 - [ ] **Replace redundant WaitForChild calls** with cached upvalues on hot paths
 - [ ] **Merge static terrain parts** and assign proper CollisionGroups for performance
 

@@ -21,6 +21,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local RateLimiter = require(Shared:WaitForChild("RateLimiter"))
 local ObjectPool = require(Shared:WaitForChild("ObjectPool"))
 local NetworkBatcher = require(Shared:WaitForChild("NetworkBatcher"))
+local Scheduler = require(Shared:WaitForChild("Scheduler"))
+local SpatialPartitioner = require(Shared:WaitForChild("SpatialPartitioner"))
+local AssetPreloader = require(Shared:WaitForChild("AssetPreloader"))
 
 local WeaponServer = {}
 
@@ -42,8 +45,11 @@ ObjectPool.new("HitEffects", function()
 	return effect
 end)
 
--- Initialize network batching
+-- Initialize enterprise systems
 NetworkBatcher.Initialize()
+Scheduler.Initialize()
+SpatialPartitioner.Initialize()
+AssetPreloader.Initialize()
 
 -- Player weapon states
 local PlayerWeapons = {} -- [UserId] = {Primary, Secondary, Melee, CurrentSlot, Ammo}
@@ -109,6 +115,11 @@ function WeaponServer.InitializePlayer(player: Player)
 		ReloadLimiter = RateLimiter.new(10, 0.5),   -- 10 reloads max, refill 0.5/sec
 		SwitchLimiter = RateLimiter.new(20, 2)      -- 20 switches max, refill 2/sec
 	}
+	
+	-- Preload weapon assets for player
+	task.spawn(function()
+		AssetPreloader.PreloadForPlayer(player)
+	end)
 	
 	-- Send initial weapon state to client
 	WeaponStateRemote:FireClient(player, PlayerWeapons[userId])
@@ -281,8 +292,15 @@ function WeaponServer.HandleFireWeapon(player: Player, weaponId: string, originC
 		end
 	end
 	
-	-- Use enterprise network batching instead of individual FireClient calls
-	NetworkBatcher.QueueWeaponFire(player, weaponId, hitData)
+	-- Use enterprise network batching with spatial partitioning
+	SpatialPartitioner.BroadcastToZones("WeaponFired", {
+		shooter = player.Name,
+		weapon = weaponId,
+		hits = hitData,
+		origin = serverOrigin,
+		direction = direction,
+		timestamp = tick()
+	}, serverOrigin)
 	
 	-- Send updated ammo to firing player (immediate for responsive feel)
 	NetworkBatcher.QueueUIUpdate(player, "AmmoUpdate", {
