@@ -128,180 +128,80 @@ function LobbyManager.CreateDisplay(activationPad)
 	return statusLabel
 end
 
--- Enterprise touch event handler with comprehensive validation and monitoring
+-- Simplified touch handler for debugging
 function LobbyManager.HandleTouch(hit, statusLabel)
-	local startTime = tick()
-	local sessionId = HttpService:GenerateGUID(false)
-	
-	-- Comprehensive input validation
-	if not hit or not hit.Parent then 
-		return 
-	end
+	print("[LobbyManager] ===== HANDLE TOUCH CALLED =====")
+	print("[LobbyManager] Hit part:", hit.Name)
+	print("[LobbyManager] Hit parent:", hit.Parent.Name)
 	
 	local character = hit.Parent
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local player = Players:GetPlayerFromCharacter(character)
 	
-	-- Multi-layer player validation
+	print("[LobbyManager] Character:", character and character.Name or "nil")
+	print("[LobbyManager] Humanoid:", humanoid and "found" or "nil")
+	print("[LobbyManager] Player:", player and player.Name or "nil")
+	
 	if not player or not humanoid or not character:FindFirstChild("HumanoidRootPart") then 
+		print("[LobbyManager] ❌ Validation failed - not a valid player")
 		return 
 	end
 	
-	-- Enterprise health check
-	if touchpadState.healthStatus ~= "OPERATIONAL" then
-		statusLabel.Text = "SYSTEM MAINTENANCE - PLEASE WAIT"
-		statusLabel.TextColor3 = Color3.new(1, 0.5, 0)
-		Logging.Warn("LobbyManager", "Touch rejected - system not operational", {
-			player = player.Name,
-			healthStatus = touchpadState.healthStatus
-		})
-		return
-	end
+	print("[LobbyManager] ✅ VALID PLAYER DETECTED:", player.Name)
 	
-	print("[LobbyManager] Enterprise touch detected from player:", player.Name, "Session:", sessionId)
-	
+	-- Skip all enterprise checks for now, just try teleport
 	local userId = player.UserId
-	local currentTime = tick()
 	
-	-- Update concurrent user tracking
-	touchpadState.concurrentUsers = touchpadState.concurrentUsers + 1
-	TouchpadMetrics.peakConcurrentUsers = math.max(TouchpadMetrics.peakConcurrentUsers, touchpadState.concurrentUsers)
-	
-	-- Enterprise cooldown validation with detailed logging
-	if touchpadState.cooldowns[userId] and currentTime - touchpadState.cooldowns[userId] < TOUCHPAD_CONFIG.cooldownTime then
-		touchpadState.concurrentUsers = touchpadState.concurrentUsers - 1
-		Logging.Info("LobbyManager", "Player on cooldown", {
-			player = player.Name,
-			remainingCooldown = TOUCHPAD_CONFIG.cooldownTime - (currentTime - touchpadState.cooldowns[userId]),
-			sessionId = sessionId
-		})
+	-- Simple cooldown check
+	if touchpadState.cooldowns[userId] and tick() - touchpadState.cooldowns[userId] < 2 then
+		print("[LobbyManager] Player on cooldown")
 		return
 	end
 	
-	-- Check for stuck teleports and auto-cleanup
 	if touchpadState.teleportInProgress[userId] then 
-		local teleportStartTime = touchpadState.teleportStartTimes[userId]
-		if teleportStartTime and currentTime - teleportStartTime > TOUCHPAD_CONFIG.teleportTimeout then
-			-- Auto-cleanup stuck teleport
-			touchpadState.teleportInProgress[userId] = false
-			touchpadState.teleportStartTimes[userId] = nil
-			TouchpadMetrics.failedTeleports = TouchpadMetrics.failedTeleports + 1
-			Logging.Warn("LobbyManager", "Auto-cleaned stuck teleport", {
-				player = player.Name,
-				stuckDuration = currentTime - teleportStartTime,
-				sessionId = sessionId
-			})
-		else
-			touchpadState.concurrentUsers = touchpadState.concurrentUsers - 1
-			return 
-		end
+		print("[LobbyManager] Teleport already in progress")
+		return 
 	end
 	
-	-- Enterprise concurrent teleport limiting
-	local activeTeleports = 0
-	for _, inProgress in pairs(touchpadState.teleportInProgress) do
-		if inProgress then activeTeleports = activeTeleports + 1 end
-	end
+	print("[LobbyManager] 🚀 ATTEMPTING TELEPORT FOR:", player.Name)
 	
-	if activeTeleports >= TOUCHPAD_CONFIG.maxConcurrentTeleports then
-		touchpadState.concurrentUsers = touchpadState.concurrentUsers - 1
-		statusLabel.Text = "SYSTEM BUSY - PLEASE WAIT"
-		statusLabel.TextColor3 = Color3.new(1, 0.5, 0)
-		Logging.Warn("LobbyManager", "Max concurrent teleports reached", {
-			player = player.Name,
-			activeTeleports = activeTeleports,
-			maxAllowed = TOUCHPAD_CONFIG.maxConcurrentTeleports,
-			sessionId = sessionId
-		})
-		return
-	end
-	
-	-- Enterprise rate limiting with detailed metrics
-	if not RateLimiter.CheckLimit(player, "TeleportTouchpad", 0.5) then
-		touchpadState.concurrentUsers = touchpadState.concurrentUsers - 1
-		TouchpadMetrics.rateLimitedRequests = TouchpadMetrics.rateLimitedRequests + 1
-		statusLabel.Text = "RATE LIMITED - PLEASE WAIT"
-		statusLabel.TextColor3 = Color3.new(1, 0.5, 0)
-		
-		Logging.Info("LobbyManager", "Player rate limited", {
-			player = player.Name,
-			totalRateLimited = TouchpadMetrics.rateLimitedRequests,
-			sessionId = sessionId
-		})
-		
-		task.spawn(function()
-			task.wait(2)
-			statusLabel.Text = "WALK ON PLATFORM TO TELEPORT"
-			statusLabel.TextColor3 = Color3.new(0, 1, 0)
-		end)
-		return
-	end
-	
-	print("[LobbyManager] Enterprise teleport initiated for:", player.Name, "Session:", sessionId)
-	
-	-- Set enterprise state tracking
-	touchpadState.cooldowns[userId] = currentTime
+	-- Set basic state
+	touchpadState.cooldowns[userId] = tick()
 	touchpadState.teleportInProgress[userId] = true
-	touchpadState.teleportStartTimes[userId] = currentTime
-	touchpadState.sessionIds[userId] = sessionId
 	
-	-- Update display with professional messaging
-	statusLabel.Text = "🚀 TELEPORTING " .. player.Name:upper()
+	-- Update display
+	statusLabel.Text = "TELEPORTING " .. player.Name:upper()
 	statusLabel.TextColor3 = Color3.new(1, 1, 0)
 	
-	-- Enterprise teleport execution with comprehensive error handling
+	-- Simple teleport attempt
 	task.spawn(function()
 		task.wait(0.5)
 		
-		local teleportSuccess = false
-		local errorMessage = nil
+		print("[LobbyManager] Executing teleport...")
 		
-		local success, result = pcall(function()
+		local success, error = pcall(function()
+			print("[LobbyManager] Looking for PracticeMapManager...")
 			local PracticeMapManager = require(game.ServerScriptService.Core:WaitForChild("PracticeMapManager"))
-			return PracticeMapManager.TeleportToPractice(player)
+			print("[LobbyManager] Found PracticeMapManager, calling TeleportToPractice...")
+			local result = PracticeMapManager.TeleportToPractice(player)
+			print("[LobbyManager] TeleportToPractice result:", result)
+			return result
 		end)
 		
 		if success then
-			teleportSuccess = true
-			TouchpadMetrics.totalTeleports = TouchpadMetrics.totalTeleports + 1
-			
-			-- Calculate response time metrics
-			local responseTime = tick() - startTime
-			TouchpadMetrics.averageResponseTime = (TouchpadMetrics.averageResponseTime + responseTime) / 2
-			
-			Logging.Info("LobbyManager", "Enterprise teleport successful", {
-				player = player.Name,
-				responseTime = responseTime,
-				totalTeleports = TouchpadMetrics.totalTeleports,
-				sessionId = sessionId
-			})
+			print("[LobbyManager] ✅ TELEPORT SUCCESSFUL for:", player.Name)
+			statusLabel.Text = "TELEPORT SUCCESSFUL!"
+			statusLabel.TextColor3 = Color3.new(0, 1, 0)
 		else
-			teleportSuccess = false
-			errorMessage = tostring(result)
-			TouchpadMetrics.failedTeleports = TouchpadMetrics.failedTeleports + 1
-			
-			Logging.Error("LobbyManager", "Enterprise teleport failed", {
-				player = player.Name,
-				error = errorMessage,
-				totalFailures = TouchpadMetrics.failedTeleports,
-				sessionId = sessionId
-			})
-		end
-		
-		-- Enterprise state cleanup and user feedback
-		if not teleportSuccess then
-			statusLabel.Text = "⚠️ TELEPORT FAILED - TRY AGAIN"
+			print("[LobbyManager] ❌ TELEPORT FAILED for:", player.Name, "Error:", error)
+			statusLabel.Text = "TELEPORT FAILED: " .. tostring(error)
 			statusLabel.TextColor3 = Color3.new(1, 0, 0)
 		end
 		
-		-- Reset enterprise state with delay
-		task.wait(1)
+		-- Reset state
+		task.wait(2)
 		touchpadState.teleportInProgress[userId] = false
-		touchpadState.teleportStartTimes[userId] = nil
-		touchpadState.sessionIds[userId] = nil
-		touchpadState.concurrentUsers = math.max(0, touchpadState.concurrentUsers - 1)
-		
-		statusLabel.Text = "✅ WALK ON PLATFORM TO TELEPORT"
+		statusLabel.Text = "WALK ON PLATFORM TO TELEPORT"
 		statusLabel.TextColor3 = Color3.new(0, 1, 0)
 	end)
 end
@@ -379,18 +279,78 @@ function LobbyManager.GetSystemMetrics()
 	}
 end
 
--- Setup touch detection
+-- Setup touch detection with maximum debug output
 function LobbyManager.SetupTouchDetection(touchpadBase, activationPad, statusLabel)
 	print("[LobbyManager] Setting up touch detection...")
+	print("[LobbyManager] Touchpad base:", touchpadBase.Name, "at", touchpadBase.Position)
+	print("[LobbyManager] Activation pad:", activationPad.Name, "at", activationPad.Position)
 	
 	local function onTouch(hit)
+		print("[LobbyManager] 🔥🔥🔥 TOUCH EVENT FIRED! 🔥🔥🔥")
+		print("[LobbyManager] Hit:", hit.Name, "Parent:", hit.Parent.Name)
+		
+		-- IMMEDIATE VISUAL FEEDBACK
+		task.spawn(function()
+			-- Flash the touched part bright yellow
+			local originalColor = hit.Color
+			for i = 1, 3 do
+				hit.Color = Color3.new(1, 1, 0) -- Bright yellow
+				task.wait(0.1)
+				hit.Color = originalColor
+				task.wait(0.1)
+			end
+			
+			-- Add sparkles for 3 seconds
+			local sparkles = Instance.new("Sparkles")
+			sparkles.Parent = hit
+			sparkles.Color = Color3.new(1, 1, 0)
+			game:GetService("Debris"):AddItem(sparkles, 3)
+		end)
+		
+		-- Simple validation first
+		local character = hit.Parent
+		if not character then
+			print("[LobbyManager] No character found")
+			return
+		end
+		
+		local player = Players:GetPlayerFromCharacter(character)
+		if not player then
+			print("[LobbyManager] No player found for character:", character.Name)
+			return
+		end
+		
+		print("[LobbyManager] 🎯 PLAYER FOUND:", player.Name, "- CALLING HANDLE TOUCH")
 		LobbyManager.HandleTouch(hit, statusLabel)
 	end
 	
-	touchpadBase.Touched:Connect(onTouch)
-	activationPad.Touched:Connect(onTouch)
+	-- Connect events with error checking
+	local success1, connection1 = pcall(function()
+		return touchpadBase.Touched:Connect(onTouch)
+	end)
 	
-	print("[LobbyManager] Touch events connected")
+	local success2, connection2 = pcall(function()
+		return activationPad.Touched:Connect(onTouch)
+	end)
+	
+	if success1 and success2 then
+		print("[LobbyManager] ✅ Touch events connected successfully to both pads")
+	else
+		warn("[LobbyManager] ❌ Failed to connect touch events")
+	end
+	
+	-- Test the parts are actually there
+	task.spawn(function()
+		task.wait(2)
+		print("[LobbyManager] POST-SETUP CHECK:")
+		print("  - Base exists:", workspace:FindFirstChild("PracticeTeleportTouchpad") ~= nil)
+		print("  - Activation exists:", workspace:FindFirstChild("ActivationPad") ~= nil)
+		print("  - Base position:", touchpadBase.Position)
+		print("  - Base size:", touchpadBase.Size)
+		print("  - Base CanCollide:", touchpadBase.CanCollide)
+		print("  - Activation position:", activationPad.Position)
+		print("  - Activation CanCollide:", activationPad.CanCollide)
+	end)
 end
 
 -- Create the main system
