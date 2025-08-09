@@ -1,39 +1,50 @@
 {
   "name": "fps roblox",
+  "servePort": 34872,
+  "globIgnorePaths": [
+    "**/*.rbxl",
+    "**/*.rbxlx", 
+    "**/*.rbxlx.lock",
+    "**/test-*",
+    "**/.git",
+    "**/README.md"
+  ],
   "tree": {
     "$className": "DataModel",
 
     "ReplicatedStorage": {
-      "$path": "ReplicatedStorage",
-      "SharedBasic": {
-        "$path": "src/shared"
-      }
+      "$className": "ReplicatedStorage",
+      "$path": "ReplicatedStorage"
     },
 
     "ReplicatedFirst": {
+      "$className": "ReplicatedFirst", 
       "$path": "ReplicatedFirst"
     },
 
     "ServerScriptService": {
-      "$path": "ServerScriptService",
-      "ServerBasic": {
-        "$path": "src/server"
-      }
+      "$className": "ServerScriptService",
+      "$path": "ServerScriptService"
     },
 
     "ServerStorage": {
+      "$className": "ServerStorage",
       "$path": "ServerStorage"
     },
 
     "StarterGui": {
+      "$className": "StarterGui",
       "$path": "StarterGui"
     },
 
     "StarterPlayer": {
+      "$className": "StarterPlayer",
       "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts", 
         "$path": "StarterPlayer/StarterPlayerScripts"
       },
       "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
         "$path": "StarterPlayer/StarterCharacterScripts"
       }
     },
@@ -43,6 +54,7 @@
     },
 
     "Workspace": {
+      "$className": "Workspace",
       "$properties": {
         "FilteringEnabled": true
       },
@@ -74,6 +86,7 @@
       }
     },
     "Lighting": {
+      "$className": "Lighting",
       "$properties": {
         "Ambient": [
           0,
@@ -87,6 +100,7 @@
       }
     },
     "SoundService": {
+      "$className": "SoundService",
       "$properties": {
         "RespectFilteringEnabled": true
       }
