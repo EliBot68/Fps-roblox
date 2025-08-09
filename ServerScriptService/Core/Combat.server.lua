@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 local Matchmaker = require(script.Parent.Matchmaker)
 local Logging = require(ReplicatedStorage.Shared.Logging)
+local Metrics = require(script.Parent.Metrics)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -74,6 +75,8 @@ function Combat.Fire(plr, origin, direction)
 	state.ammo -= 1
 
 	Logging.Event("FireAttempt", { u = plr.UserId, w = state.weapon, ammo = state.ammo })
+	Metrics.Inc("ShotsFired")
+	local startT = os.clock()
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -91,6 +94,7 @@ function Combat.Fire(plr, origin, direction)
 					playerState[targetPlayer].deaths += 1
 					print(plr.Name .. " eliminated " .. targetPlayer.Name)
 					Logging.Event("Elimination", { killer = plr.UserId, victim = targetPlayer.UserId, w = state.weapon })
+					Metrics.Inc("Eliminations")
 					Matchmaker.OnPlayerKill(plr, targetPlayer)
 					health[targetPlayer] = MAX_HEALTH
 					-- Simple immediate respawn placeholder
@@ -98,6 +102,7 @@ function Combat.Fire(plr, origin, direction)
 			end
 		end
 	end
+	Metrics.Observe("FireValidationLatency", os.clock() - startT)
 	pushStats(plr)
 	return true, { ammo = state.ammo }
 end

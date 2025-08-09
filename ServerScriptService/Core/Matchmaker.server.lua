@@ -23,6 +23,10 @@ local countdownActive = false
 local teams = { A = {}, B = {} }
 local score = { A = 0, B = 0 }
 
+local Metrics = require(script.Parent.Metrics)
+local DataStore = require(script.Parent.DataStore)
+local RankManager = require(script.Parent.RankManager)
+
 local function broadcast(eventName, payload)
 	-- Placeholder: use RemoteEvent later
 	print("[Matchmaker] " .. eventName, payload and payload.state or "")
@@ -54,6 +58,28 @@ local function endMatch(reason)
 	if not inMatch then return end
 	inMatch = false
 	broadcast("MatchEnded", { id = matchId, reason = reason, score = score })
+	Metrics.Inc("MatchEnded")
+	-- ELO adjust placeholder: winners vs losers
+	local winners
+	if reason == "ScoreWin" then
+		winners = score.A > score.B and teams.A or teams.B
+	end
+	local losers = {}
+	if winners then
+		local winnerAvg = 0
+		for _,p in ipairs(winners) do winnerAvg += RankManager.Get(p) end
+		winnerAvg /= math.max(1,#winners)
+		for _,p in ipairs(winners) do
+			RankManager.ApplyResult(p, winnerAvg, 1)
+			local prof = DataStore.Get(p); if prof then prof.TotalMatches += 1; DataStore.MarkDirty(p) end
+		end
+		local other = winners == teams.A and teams.B or teams.A
+		for _,p in ipairs(other) do
+			RankManager.ApplyResult(p, winnerAvg, 0)
+			local prof = DataStore.Get(p); if prof then prof.TotalMatches += 1; DataStore.MarkDirty(p) end
+			table.insert(losers, p)
+		end
+	end
 	clearQueue()
 	teams.A, teams.B = {}, {}
 end
