@@ -12,6 +12,9 @@ local Metrics = require(script.Parent.Metrics)
 local AntiCheat = require(script.Parent.AntiCheat)
 local KillStreakManager = require(script.Parent.KillStreakManager)
 local RemoteValidator = require(ReplicatedStorage.Shared.RemoteValidator)
+local ReplayRecorder = require(script.Parent.ReplayRecorder)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local RateLimiter = require(script.Parent.RateLimiter)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -68,6 +71,18 @@ local function pushStats(plr)
 	})
 end
 
+local respawnPlayer -- forward declaration
+
+respawnPlayer = function(plr)
+	-- placeholder: simply reset health after delay
+	task.delay(GameConfig.Respawn.Delay, function()
+		if health[plr] then
+			health[plr] = MAX_HEALTH
+			pushStats(plr)
+		end
+	end)
+end
+
 function Combat.Fire(plr, origin, direction)
 	initPlayer(plr)
 	local state = playerState[plr]
@@ -81,6 +96,7 @@ function Combat.Fire(plr, origin, direction)
 	state.ammo -= 1
 
 	Logging.Event("FireAttempt", { u = plr.UserId, w = state.weapon, ammo = state.ammo })
+	ReplayRecorder.Log("Fire", { u = plr.UserId, w = state.weapon })
 	Metrics.Inc("ShotsFired")
 	local startT = os.clock()
 
@@ -104,13 +120,12 @@ function Combat.Fire(plr, origin, direction)
 					playerState[targetPlayer].deaths += 1
 					print(plr.Name .. " eliminated " .. targetPlayer.Name)
 					Logging.Event("Elimination", { killer = plr.UserId, victim = targetPlayer.UserId, w = state.weapon, head = isHead })
+					ReplayRecorder.Log("Elim", { k = plr.UserId, v = targetPlayer.UserId, w = state.weapon, head = isHead })
 					Metrics.Inc("Eliminations")
 					Matchmaker.OnPlayerKill(plr, targetPlayer)
 					KillStreakManager.OnKill(plr, targetPlayer)
 					KillStreakManager.Reset(targetPlayer)
-					health[targetPlayer] = MAX_HEALTH
-					-- Simple immediate respawn placeholder
-					AntiCheat.RecordHit(plr, isHead)
+					respawnPlayer(targetPlayer)
 				else
 					AntiCheat.RecordHit(plr, isHead)
 				end
@@ -166,6 +181,7 @@ end
 -- Remote wiring
 if FireWeaponRemote then
 	FireWeaponRemote.OnServerEvent:Connect(function(plr, origin, direction)
+		if not RateLimiter.Consume(plr, "Fire", 1) then return end
 		local ok = RemoteValidator.ValidateFire(origin, direction)
 		if not ok then return end
 		Combat.Fire(plr, origin, direction)
@@ -173,10 +189,12 @@ if FireWeaponRemote then
 end
 
 RequestReloadRemote.OnServerEvent:Connect(function(plr)
+	if not RateLimiter.Consume(plr, "Reload", 1) then return end
 	Combat.Reload(plr)
 end)
 
 SwitchWeaponRemote.OnServerEvent:Connect(function(plr, weaponId)
+	if not RateLimiter.Consume(plr, "Switch", 1) then return end
 	local ok = RemoteValidator.ValidateWeaponId(weaponId)
 	if not ok then return end
 	Combat.SwitchWeapon(plr, weaponId)

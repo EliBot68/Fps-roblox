@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local Logging = require(game:GetService("ReplicatedStorage").Shared.Logging)
 local RankManager = require(script.Parent.RankManager)
+local TournamentPersistence = require(script.Parent.TournamentPersistence)
 
 local Tournament = {}
 
@@ -67,8 +68,10 @@ function Tournament.Create(players)
 		Rounds = rounds,
 		State = "InProgress",
 		CreatedAt = os.time(),
+		TournamentId = "T_" .. os.time() .. "_" .. #list,
 	}
 	Logging.Event("TournamentCreated", { size = #list })
+	TournamentPersistence.Save(activeBracket.TournamentId, activeBracket)
 	return true
 end
 

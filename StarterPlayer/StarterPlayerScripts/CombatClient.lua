@@ -13,6 +13,8 @@ local FireWeaponRemote = CombatEvents:WaitForChild("FireWeapon")
 local RequestReloadRemote = CombatEvents:WaitForChild("RequestReload")
 local SwitchWeaponRemote = CombatEvents:WaitForChild("SwitchWeapon")
 
+local RecoilClient = require(script.Parent.RecoilClient)
+
 local currentWeapon = "AssaultRifle"
 local lastFire = 0
 local FIRE_COOLDOWN = 0.12

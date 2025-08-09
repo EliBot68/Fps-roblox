@@ -149,7 +149,7 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [x] Basic matchmaker for 2–6 player matches
 - [x] Server-authoritative assault rifle with realistic mechanics
 - [ ] Simple arena map with balanced spawn points (placeholder only, not built)
-- [~] Basic HUD showing health, ammo, and match timer (health/ammo stats via Remote; GUI + timer pending)
+- [~] Basic HUD showing health, ammo, and match timer (health/ammo stats via ScreenGui; match timer pending)
 
 ### Phase 2: Core Systems
 - [~] ELO ranking system with skill-based matchmaking (ELO + tiers done; matchmaking now sorts by Elo for team balance; full bucket system pending)
@@ -173,12 +173,12 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [ ] Additional maps with unique layouts and themes
 - [~] Kill streak rewards and power-ups (streak currency rewards present; power-up effects not implemented)
 - [ ] Seasonal events and limited-time cosmetics
-- [~] Spectator mode and replay system (basic spectator scaffold; no replay system)
+- [~] Spectator mode and replay system (camera target cycling + replay event log scaffold; full replay playback pending)
 
 ### Phase 6: Competitive Features
 - [ ] Ranked seasons with placement matches
 - [~] Tournament mode for organized competitions (single-elim bracket scaffold; no persistence/UI)
-- [~] Clan system and team battles (in-memory clans only; no battles/persistence)
+- [~] Clan system and team battles (in-memory clans + membership persistence; battles pending)
 - [ ] Advanced statistics and performance analytics
 
 ### Phase 7: Live Ops & Analytics
@@ -195,7 +195,7 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 
 ### Phase 9: Esports & Integrity
 - [~] Enhanced anti-cheat heuristics + anomaly scoring (heuristics + anomaly score accumulator; action ladder pending)
-- [ ] Match recording metadata logs (shots, damage events persistence)
+- [ ] Match recording metadata logs (fire & elimination events collected in memory)
 - [ ] Admin review tooling & replay proto
 - [~] Tournament seeding & bracket automation (ELO seeding + progression basic)
 
