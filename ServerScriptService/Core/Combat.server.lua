@@ -3,8 +3,20 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WeaponConfig = require(game:GetService("ReplicatedStorage").Shared.WeaponConfig)
+local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local Matchmaker = require(script.Parent.Matchmaker)
+
+-- Ensure remote references
+local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
+local CombatEvents = RemoteRoot:WaitForChild("CombatEvents")
+local UIEvents = RemoteRoot:WaitForChild("UIEvents")
+local FireWeaponRemote = CombatEvents:WaitForChild("FireWeapon", 5)
+local RequestReloadRemote = CombatEvents:FindFirstChild("RequestReload") or Instance.new("RemoteEvent")
+RequestReloadRemote.Name = "RequestReload"; RequestReloadRemote.Parent = CombatEvents
+local UpdateStatsRemote = UIEvents:FindFirstChild("UpdateStats") or Instance.new("RemoteEvent")
+UpdateStatsRemote.Name = "UpdateStats"; UpdateStatsRemote.Parent = UIEvents
 
 local Combat = {}
 
@@ -12,7 +24,7 @@ local health = {}
 local MAX_HEALTH = 100
 
 local playerState = {}
--- playerState[player] = { lastFire=0, weapon="AssaultRifle", ammo=mag, reserve=total }
+-- playerState[player] = { lastFire=0, weapon="AssaultRifle", ammo=mag, reserve=total, deaths=0, kills=0 }
 
 local function initPlayer(plr)
 	if not playerState[plr] then
@@ -22,6 +34,8 @@ local function initPlayer(plr)
 			weapon = w.Id,
 			ammo = w.MagazineSize,
 			reserve = w.MagazineSize * 3,
+			kills = 0,
+			deaths = 0,
 		}
 	end
 	if not health[plr] then
@@ -33,21 +47,28 @@ local function weaponStats(id)
 	return WeaponConfig[id]
 end
 
+local function pushStats(plr)
+	local state = playerState[plr]
+	if not state then return end
+	UpdateStatsRemote:FireClient(plr, {
+		Health = health[plr],
+		Ammo = state.ammo,
+		Reserve = state.reserve,
+		Weapon = state.weapon,
+		Kills = state.kills,
+		Deaths = state.deaths,
+	})
+end
+
 function Combat.Fire(plr, origin, direction)
 	initPlayer(plr)
 	local state = playerState[plr]
 	local wStats = weaponStats(state.weapon)
 	if not wStats then return false, "Invalid weapon" end
-
-	if state.ammo <= 0 then
-		return false, "Empty"
-	end
-
+	if state.ammo <= 0 then return false, "Empty" end
 	local now = os.clock()
 	local cooldown = 1 / wStats.FireRate
-	if now - state.lastFire < cooldown then
-		return false, "Rate limited"
-	end
+	if now - state.lastFire < cooldown then return false, "Rate limited" end
 	state.lastFire = now
 	state.ammo -= 1
 
@@ -59,17 +80,21 @@ function Combat.Fire(plr, origin, direction)
 		local hitChar = result.Instance:FindFirstAncestorWhichIsA("Model")
 		if hitChar and hitChar:FindFirstChild("Humanoid") then
 			local targetPlayer = Players:GetPlayerFromCharacter(hitChar)
-			if targetPlayer then
+			if targetPlayer and targetPlayer ~= plr then
 				initPlayer(targetPlayer)
 				health[targetPlayer] -= wStats.Damage
 				if health[targetPlayer] <= 0 then
+					state.kills += 1
+					playerState[targetPlayer].deaths += 1
 					print(plr.Name .. " eliminated " .. targetPlayer.Name)
+					Matchmaker.OnPlayerKill(plr, targetPlayer)
 					health[targetPlayer] = MAX_HEALTH
-					-- TODO: respawn delay
+					-- Simple immediate respawn placeholder
 				end
 			end
 		end
 	end
+	pushStats(plr)
 	return true, { ammo = state.ammo }
 end
 
@@ -83,7 +108,25 @@ function Combat.Reload(plr)
 	local taken = math.min(needed, state.reserve)
 	state.ammo += taken
 	state.reserve -= taken
+	pushStats(plr)
 	return true, { ammo = state.ammo, reserve = state.reserve }
 end
+
+-- Remote wiring
+if FireWeaponRemote then
+	FireWeaponRemote.OnServerEvent:Connect(function(plr, origin, direction)
+		if typeof(origin) ~= "Vector3" or typeof(direction) ~= "Vector3" then return end
+		Combat.Fire(plr, origin, direction)
+	end)
+end
+
+RequestReloadRemote.OnServerEvent:Connect(function(plr)
+	Combat.Reload(plr)
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+	initPlayer(plr)
+	pushStats(plr)
+end)
 
 return Combat
