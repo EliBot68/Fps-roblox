@@ -4,51 +4,86 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
+local WeaponConfig = require(game:GetService("ReplicatedStorage").Shared.WeaponConfig)
+
 local Combat = {}
 
--- Basic player state (placeholder)
 local health = {}
 local MAX_HEALTH = 100
 
-local lastFireTime = {}
-local FIRE_COOLDOWN = 0.12 -- ~8.3 rps
-local MAX_RAY_DISTANCE = 300
+local playerState = {}
+-- playerState[player] = { lastFire=0, weapon="AssaultRifle", ammo=mag, reserve=total }
 
-local function ensurePlayer(plr)
+local function initPlayer(plr)
+	if not playerState[plr] then
+		local w = WeaponConfig.AssaultRifle
+		playerState[plr] = {
+			lastFire = 0,
+			weapon = w.Id,
+			ammo = w.MagazineSize,
+			reserve = w.MagazineSize * 3,
+		}
+	end
 	if not health[plr] then
 		health[plr] = MAX_HEALTH
 	end
 end
 
+local function weaponStats(id)
+	return WeaponConfig[id]
+end
+
 function Combat.Fire(plr, origin, direction)
-	ensurePlayer(plr)
+	initPlayer(plr)
+	local state = playerState[plr]
+	local wStats = weaponStats(state.weapon)
+	if not wStats then return false, "Invalid weapon" end
+
+	if state.ammo <= 0 then
+		return false, "Empty"
+	end
+
 	local now = os.clock()
-	local last = lastFireTime[plr] or 0
-	if now - last < FIRE_COOLDOWN then
+	local cooldown = 1 / wStats.FireRate
+	if now - state.lastFire < cooldown then
 		return false, "Rate limited"
 	end
-	lastFireTime[plr] = now
+	state.lastFire = now
+	state.ammo -= 1
 
-	-- Raycast
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { plr.Character }
-	local result = workspace:Raycast(origin, direction.Unit * MAX_RAY_DISTANCE, params)
+	local result = workspace:Raycast(origin, direction.Unit * wStats.Range, params)
 	if result and result.Instance then
 		local hitChar = result.Instance:FindFirstAncestorWhichIsA("Model")
 		if hitChar and hitChar:FindFirstChild("Humanoid") then
 			local targetPlayer = Players:GetPlayerFromCharacter(hitChar)
 			if targetPlayer then
-				ensurePlayer(targetPlayer)
-				health[targetPlayer] -= 25
+				initPlayer(targetPlayer)
+				health[targetPlayer] -= wStats.Damage
 				if health[targetPlayer] <= 0 then
 					print(plr.Name .. " eliminated " .. targetPlayer.Name)
-					health[targetPlayer] = MAX_HEALTH -- simple respawn reset
+					health[targetPlayer] = MAX_HEALTH
+					-- TODO: respawn delay
 				end
 			end
 		end
 	end
-	return true
+	return true, { ammo = state.ammo }
+end
+
+function Combat.Reload(plr)
+	initPlayer(plr)
+	local state = playerState[plr]
+	local wStats = weaponStats(state.weapon)
+	if state.ammo >= wStats.MagazineSize then return false, "Full" end
+	if state.reserve <= 0 then return false, "NoReserve" end
+	local needed = wStats.MagazineSize - state.ammo
+	local taken = math.min(needed, state.reserve)
+	state.ammo += taken
+	state.reserve -= taken
+	return true, { ammo = state.ammo, reserve = state.reserve }
 end
 
 return Combat
