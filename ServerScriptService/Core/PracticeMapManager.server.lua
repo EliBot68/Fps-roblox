@@ -6,7 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
 
-local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local WeaponDefinitions = require(ReplicatedStorage:WaitForChild("WeaponSystem"):WaitForChild("Modules"):WaitForChild("WeaponDefinitions"))
+local WeaponUtils = require(ReplicatedStorage:WaitForChild("WeaponSystem"):WaitForChild("Modules"):WaitForChild("WeaponUtils"))
 local Logging = require(ReplicatedStorage.Shared.Logging)
 
 local PracticeMapManager = {}
@@ -113,29 +114,66 @@ function PracticeMapManager.CreateBoundaries(practiceMap)
 	end
 end
 
--- Create weapon selection touchpads in practice area
+-- Create weapon selection touchpads in practice area with new weapon system
 function PracticeMapManager.CreateWeaponPads(practiceMap)
 	local weaponPadsFolder = Instance.new("Folder")
 	weaponPadsFolder.Name = "WeaponPads"
 	weaponPadsFolder.Parent = practiceMap
 	
-	local weapons = {"AssaultRifle", "SMG", "Shotgun", "Sniper", "Pistol", "BurstRifle"}
+	-- Get all available weapons from new weapon system
+	local allWeapons = {}
+	local weaponIds = {}
+	
+	-- Get weapons from all slots
+	for _, slot in ipairs({"Primary", "Secondary", "Melee"}) do
+		local slotWeapons = WeaponDefinitions.GetWeaponsForSlot(slot)
+		for _, weapon in ipairs(slotWeapons) do
+			table.insert(weaponIds, weapon.Id)
+			allWeapons[weapon.Id] = weapon
+		end
+	end
+	
+	-- Sort weapons by slot priority and name
+	table.sort(weaponIds, function(a, b)
+		local weaponA = allWeapons[a]
+		local weaponB = allWeapons[b]
+		
+		-- Slot priority: Primary > Secondary > Melee
+		local slotPriority = {Primary = 1, Secondary = 2, Melee = 3}
+		local priorityA = slotPriority[weaponA.Slot] or 4
+		local priorityB = slotPriority[weaponB.Slot] or 4
+		
+		if priorityA ~= priorityB then
+			return priorityA < priorityB
+		end
+		return weaponA.Name < weaponB.Name
+	end)
+	
 	local padColors = {
+		-- Primary weapon colors
 		AssaultRifle = Color3.new(0.8, 0.4, 0.2), -- Orange
 		SMG = Color3.new(1, 1, 0), -- Yellow
 		Shotgun = Color3.new(1, 0, 0), -- Red
 		Sniper = Color3.new(0, 0, 1), -- Blue
+		-- Secondary weapon colors
 		Pistol = Color3.new(0.5, 0.5, 0.5), -- Gray
-		BurstRifle = Color3.new(0.8, 0, 0.8) -- Purple
+		-- Melee weapon colors
+		Melee = Color3.new(0.6, 0.3, 0.1), -- Brown
+		Throwable = Color3.new(0.8, 0, 0.8) -- Purple
 	}
 	
-	for i, weaponId in ipairs(weapons) do
-		local weapon = WeaponConfig[weaponId]
-		if not weapon then continue end
+	-- Create weapon pads for up to 12 weapons (2 rows)
+	local maxWeapons = math.min(#weaponIds, 12)
+	for i = 1, maxWeapons do
+		local weaponId = weaponIds[i]
+		local weapon = allWeapons[weaponId]
 		
-		-- Position weapon pads in a line in front of practice spawn
-		local xOffset = (i - 3.5) * PRACTICE_CONFIG.weaponPadSpacing
-		local position = Vector3.new(1000 + xOffset, 46, 970) -- In practice area, south of spawn
+		-- Position weapon pads in 2 rows if more than 6 weapons
+		local row = math.ceil(i / 6) - 1
+		local col = ((i - 1) % 6) + 1
+		local xOffset = (col - 3.5) * PRACTICE_CONFIG.weaponPadSpacing
+		local zOffset = -30 - (row * 25) -- Multiple rows, going further back
+		local position = Vector3.new(1000 + xOffset, 46, 970 + zOffset)
 		
 		-- Create weapon pad
 		local weaponPad = Instance.new("Part")
@@ -143,33 +181,48 @@ function PracticeMapManager.CreateWeaponPads(practiceMap)
 		weaponPad.Size = Vector3.new(12, 2, 12)
 		weaponPad.Position = position
 		weaponPad.Material = Enum.Material.Neon
-		weaponPad.Color = padColors[weaponId] or Color3.new(1, 1, 1)
+		weaponPad.Color = padColors[weapon.Category] or padColors[weaponId] or Color3.new(1, 1, 1)
 		weaponPad.Anchored = true
 		weaponPad.Parent = weaponPadsFolder
 		
-		-- Add glow effect
+		-- Add glow intensity based on weapon damage
+		local glowIntensity = 1 + (weapon.Damage / 50) -- Scale with damage
 		local pointLight = Instance.new("PointLight")
 		pointLight.Color = weaponPad.Color
-		pointLight.Brightness = 2
-		pointLight.Range = 15
+		pointLight.Brightness = glowIntensity
+		pointLight.Range = 15 + (weapon.Damage / 10)
 		pointLight.Parent = weaponPad
 		
-		-- Create weapon name label
+		-- Create weapon name label with stats
 		local billboard = Instance.new("BillboardGui")
-		billboard.Size = UDim2.new(0, 200, 0, 50)
+		billboard.Size = UDim2.new(0, 200, 0, 70)
 		billboard.StudsOffset = Vector3.new(0, 3, 0)
 		billboard.Parent = weaponPad
 		
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, 0, 1, 0)
-		label.BackgroundTransparency = 1
-		label.Text = weapon.Name
-		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextScaled = true
-		label.Font = Enum.Font.SourceSansBold
-		label.TextStrokeTransparency = 0
-		label.TextStrokeColor3 = Color3.new(0, 0, 0)
-		label.Parent = billboard
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1, 0, 0.7, 0)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.Text = weapon.Name
+		nameLabel.TextColor3 = Color3.new(1, 1, 1)
+		nameLabel.TextScaled = true
+		nameLabel.Font = Enum.Font.SourceSansBold
+		nameLabel.TextStrokeTransparency = 0
+		nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+		nameLabel.Parent = billboard
+		
+		-- Add weapon stats info
+		local infoLabel = Instance.new("TextLabel")
+		infoLabel.Size = UDim2.new(1, 0, 0.3, 0)
+		infoLabel.Position = UDim2.new(0, 0, 0.7, 0)
+		infoLabel.BackgroundTransparency = 1
+		local ammoText = weapon.MagazineSize >= 999 and "∞" or tostring(weapon.MagazineSize)
+		infoLabel.Text = string.format("%s | %d DMG | %.1f RPS", weapon.Slot:sub(1,3):upper(), weapon.Damage, weapon.FireRate)
+		infoLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+		infoLabel.TextScaled = true
+		infoLabel.Font = Enum.Font.SourceSans
+		infoLabel.TextStrokeTransparency = 0
+		infoLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+		infoLabel.Parent = billboard
 		
 		-- Add touch detection
 		local detector = Instance.new("Part")
@@ -381,30 +434,37 @@ function PracticeMapManager.CreateReturnPortal(practiceMap)
 	end)
 end
 
--- Give weapon to player
+-- Give weapon to player using new weapon system
 function PracticeMapManager.GiveWeapon(player, weaponId)
-	-- Send weapon change to combat system
-	local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
-	local CombatEvents = RemoteRoot:WaitForChild("CombatEvents")
-	local switchWeaponRemote = CombatEvents:FindFirstChild("SwitchWeapon")
+	-- Use new weapon system remote events
+	local RemoteRoot = ReplicatedStorage:WaitForChild("WeaponEvents")
+	local switchWeaponRemote = RemoteRoot:FindFirstChild("SwitchWeapon")
 	
+	-- Get weapon configuration from new system
+	local weapon = WeaponDefinitions.GetWeapon(weaponId)
+	if not weapon then
+		warn("Invalid weapon ID:", weaponId)
+		return
+	end
+	
+	-- Switch to the appropriate weapon slot
 	if switchWeaponRemote then
-		-- Simulate weapon switch
-		switchWeaponRemote:FireServer(weaponId)
+		switchWeaponRemote:FireServer(weapon.Slot)
 	end
 	
 	-- Visual feedback
-	local weapon = WeaponConfig[weaponId]
-	if weapon then
-		-- Send notification to player
-		local UIEvents = RemoteRoot:WaitForChild("UIEvents")
-		local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
-		if notificationRemote then
-			notificationRemote:FireClient(player, "Equipped " .. weapon.Name, "success", 2)
+	local UIEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
+	if UIEvents then
+		UIEvents = UIEvents:FindFirstChild("UIEvents")
+		if UIEvents then
+			local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
+			if notificationRemote then
+				notificationRemote:FireClient(player, "🎯 Selected " .. weapon.Name, "Slot: " .. weapon.Slot, 3)
+			end
 		end
 	end
 	
-	Logging.Info("PracticeMapManager", player.Name .. " equipped " .. weaponId)
+	Logging.Info("PracticeMapManager", player.Name .. " selected " .. weaponId .. " (" .. weapon.Name .. ")")
 end
 
 -- Teleport player to practice map
