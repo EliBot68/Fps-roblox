@@ -24,6 +24,8 @@ local NetworkBatcher = require(Shared:WaitForChild("NetworkBatcher"))
 local Scheduler = require(Shared:WaitForChild("Scheduler"))
 local SpatialPartitioner = require(Shared:WaitForChild("SpatialPartitioner"))
 local AssetPreloader = require(Shared:WaitForChild("AssetPreloader"))
+local ServiceCache = require(Shared:WaitForChild("ServiceCache"))
+local AnimationManager = require(Shared:WaitForChild("AnimationManager"))
 
 local WeaponServer = {}
 
