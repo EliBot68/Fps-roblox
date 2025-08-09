@@ -1,0 +1,27 @@
+-- This folder represents a competitive map designed for 1v1, 2v2, 3v3, and 4v4 gameplay
+-- 
+-- Map Structure:
+-- CompetitiveMap1/
+-- ├── Geometry/          (Map buildings, terrain, cover objects)
+-- ├── SpawnPoints/       (Team spawn locations)
+-- ├── Lighting/          (Custom lighting configuration)
+-- └── MapScript/         (Optional map-specific logic)
+--
+-- To add your map:
+-- 1. Build your map in Roblox Studio
+-- 2. Organize parts into the folders above
+-- 3. Add spawn points with Team attributes (Team1, Team2)
+-- 4. Save and sync with Rojo
+--
+-- Requirements for competitive maps:
+-- - Balanced layout with equal cover for both teams
+-- - Clear sightlines but strategic cover placement
+-- - At least 4 spawn points per team (for 4v4 support)
+-- - Spawn points should be 20+ studs apart from enemy spawns
+-- - Map size: 100-500 studs for optimal small team combat
+-- 
+-- The MapManager will automatically:
+-- - Detect supported game modes based on spawn points
+-- - Calculate competitive rating based on balance
+-- - Generate spawn points if not provided
+-- - Apply appropriate lighting for competitive play

@@ -1,50 +1,66 @@
 -- Matchmaker.server.lua
--- Handles player queueing and match lifecycle
+-- Handles player queueing and match lifecycle for competitive team modes
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Matchmaker = {}
 
--- Config
-local MIN_PLAYERS = 2
-local MAX_PLAYERS = 8
-local LOBBY_WAIT = 10 -- seconds before force start once min reached
-local MATCH_LENGTH = 180 -- seconds
-local COUNTDOWN = 5
-local SCORE_TO_WIN = 25
+-- Competitive mode configurations
+local GAME_MODES = {
+	["1v1"] = { minPlayers = 2, maxPlayers = 2, teams = 2, playersPerTeam = 1 },
+	["2v2"] = { minPlayers = 4, maxPlayers = 4, teams = 2, playersPerTeam = 2 },
+	["3v3"] = { minPlayers = 6, maxPlayers = 6, teams = 2, playersPerTeam = 3 },
+	["4v4"] = { minPlayers = 8, maxPlayers = 8, teams = 2, playersPerTeam = 4 }
+}
 
-local queue = {}
-local inMatch = false
+-- Config  
+local LOBBY_WAIT = 10 -- seconds before force start once min reached
+local MATCH_LENGTH = 300 -- 5 minutes for competitive matches
+local COUNTDOWN = 5
+local SCORE_TO_WIN = 30 -- Higher score for competitive play
+
+-- Queue system for different modes
+local queues = {
+	["1v1"] = {},
+	["2v2"] = {},
+	["3v3"] = {},
+	["4v4"] = {}
+}
+
+local activeMatches = {} -- Support multiple concurrent matches
 local matchId = 0
-local matchStartTime = 0
-local countdownActive = false
 
 local teams = { A = {}, B = {} }
 local score = { A = 0, B = 0 }
 
+-- Import required modules
 local Metrics = require(script.Parent.Metrics)
 local DataStore = require(script.Parent.DataStore)
 local RankManager = require(script.Parent.RankManager)
 local CurrencyManager = require(script.Parent.Parent.Economy.CurrencyManager)
 local DailyChallenges = require(script.Parent.Parent.Events.DailyChallenges)
+local MapManager = require(script.Parent.MapManager)
 
-local function broadcast(eventName, payload)
-	local remoteRoot = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
+local function broadcast(eventName, payload, targetPlayers)
+	local remoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
 	local matchmakingEvents = remoteRoot:WaitForChild("MatchmakingEvents")
+	
+	targetPlayers = targetPlayers or Players:GetPlayers()
 	
 	if eventName == "MatchStarted" then
 		local matchStartRemote = matchmakingEvents:FindFirstChild("MatchStart")
 		if matchStartRemote then
-			for _,plr in ipairs(queue) do
-				matchStartRemote:FireClient(plr, MATCH_LENGTH)
+			for _, plr in ipairs(targetPlayers) do
+				matchStartRemote:FireClient(plr, payload)
 			end
 		end
 	elseif eventName == "MatchEnded" then
 		local matchEndRemote = matchmakingEvents:FindFirstChild("MatchEnd")
 		if matchEndRemote then
-			for _,plr in ipairs(Players:GetPlayers()) do
-				matchEndRemote:FireClient(plr)
+			for _, plr in ipairs(targetPlayers) do
+				matchEndRemote:FireClient(plr, payload)
 			end
 		end
 	end

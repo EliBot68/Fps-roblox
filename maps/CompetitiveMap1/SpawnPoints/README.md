@@ -1,0 +1,23 @@
+-- Template spawn points configuration for competitive maps
+-- 
+-- In Roblox Studio, create Parts or Models in this folder with the following attributes:
+-- 
+-- For Team 1 spawns:
+-- - Set attribute "Team" to "Team1"
+-- - Position on one side of the map
+-- - Face toward map center or strategic position
+-- 
+-- For Team 2 spawns:
+-- - Set attribute "Team" to "Team2" 
+-- - Position on opposite side from Team1
+-- - Mirror Team1 positions for balance
+--
+-- Example spawn layout for 4v4 support:
+-- Team1: 4 spawn points spread along one side
+-- Team2: 4 spawn points spread along opposite side
+-- Distance between opposing spawns: 20+ studs minimum
+--
+-- The MapManager will validate:
+-- - Spawn point balance between teams
+-- - Minimum distances between opposing spawns  
+-- - Coverage for different team sizes (1v1, 2v2, 3v3, 4v4)
