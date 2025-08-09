@@ -30,4 +30,11 @@ UpdateStatsRemote.OnClientEvent:Connect(function(data)
 	UIManager.UpdateStats(data)
 end)
 
+local UpdateCurrencyRemote = UIEvents:FindFirstChild("UpdateCurrency")
+if UpdateCurrencyRemote then
+	UpdateCurrencyRemote.OnClientEvent:Connect(function(amount)
+		UIManager.SetCurrency(amount)
+	end)
+end
+
 return UIManager

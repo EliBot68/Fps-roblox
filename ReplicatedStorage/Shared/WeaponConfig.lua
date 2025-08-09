@@ -50,6 +50,18 @@ local WeaponConfig = {
 		Class = "Sniper",
 		Cost = 1200,
 	},
+	Pistol = {
+		Id = "Pistol",
+		Damage = 22,
+		FireRate = 4.5,
+		MagazineSize = 12,
+		ReloadTime = 1.6,
+		Range = 180,
+		Spread = 3.0,
+		Recoil = 0.6,
+		Class = "Pistol",
+		Cost = 0,
+	},
 }
 
 return WeaponConfig

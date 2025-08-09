@@ -160,11 +160,11 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 ### Phase 3: Weapon Variety
 - [x] Add SMG with high fire rate, low damage
 - [x] Add sniper rifle with high damage, slow fire rate
-- [ ] Add pistol as secondary weapon
+- [x] Add pistol as secondary weapon
 - [~] Implement weapon switching and dual-wielding (switching done; dual-wield not implemented)
 
 ### Phase 4: Economy & Progression
-- [x] Currency system (earn on kills, wins, streaks)
+- [x] Currency system (earn on kills, wins, streaks) (client updates currency via remote)
 - [~] Cosmetics store with weapon skins and player accessories (server purchase logic; UI + cosmetic visuals pending)
 - [x] Daily challenges with rotating objectives (kill & win hooks active)
 - [ ] Rank-based rewards and unlocks (no gating logic yet)

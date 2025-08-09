@@ -16,7 +16,7 @@ local requiredEvents = {
 	MatchmakingEvents = { "RequestMatch", "LeaveQueue" },
 	CombatEvents = { "FireWeapon", "ReportHit", "RequestReload", "SwitchWeapon" },
 	ShopEvents = { "PurchaseItem", "EquipCosmetic" },
-	UIEvents = { "UpdateStats", "ShowLeaderboard" },
+	UIEvents = { "UpdateStats", "ShowLeaderboard", "UpdateCurrency" },
 }
 
 for _,domain in ipairs(domains) do

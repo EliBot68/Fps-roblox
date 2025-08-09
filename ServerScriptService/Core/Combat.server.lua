@@ -42,7 +42,7 @@ local function initPlayer(plr)
 			reserve = w.MagazineSize * 3,
 			kills = 0,
 			deaths = 0,
-			inventory = { "AssaultRifle" },
+			inventory = { "AssaultRifle", "Pistol" },
 		}
 	end
 	if not health[plr] then
