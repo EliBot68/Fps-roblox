@@ -1,20 +1,25 @@
 -- StatisticsAnalytics.server.lua
--- Advanced statistics and performance analytics
+-- Advanced statistics and performance analytics with optimized batch processing
 
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Logging = require(ReplicatedStorage.Shared.Logging)
+local BatchProcessor = require(ReplicatedStorage.Shared.BatchProcessor)
+local PerformanceOptimizer = require(ReplicatedStorage.Shared.PerformanceOptimizer)
 
 local StatisticsAnalytics = {}
 
--- DataStores for analytics
-local playerStatsStore = DataStoreService:GetDataStore("PlayerStatistics")
+-- Initialize performance systems
+BatchProcessor.Initialize()
+
+-- DataStores for analytics with optimized batch saving
+local playerStatsStore = DataStoreService:GetDataStore("PlayerStatistics_v3")
 local matchStatsStore = DataStoreService:GetDataStore("MatchStatistics")
 local performanceStore = DataStoreService:GetDataStore("PerformanceMetrics")
 
--- Real-time analytics cache
+-- Memory-optimized analytics cache
 local playerAnalytics = {}
 local matchAnalytics = {}
 local sessionStats = {
@@ -270,19 +275,26 @@ function StatisticsAnalytics.SavePlayerStats(userId)
 	local hour = os.date("%H", os.time())
 	stats.peakPlayTime = hour .. ":00"
 	
-	-- Save to DataStore
-	pcall(function()
-		playerStatsStore:SetAsync(tostring(userId), stats)
-	end)
-	
-	analytics.dirty = false
-	
-	Logging.Event("PlayerStatsSaved", { 
-		u = userId, 
-		playtime = stats.playtime,
-		kdr = stats.kdr,
-		accuracy = stats.averageAccuracy
-	})
+	-- Use batch processor for optimized DataStore operations
+	BatchProcessor.SetDataStoreBatched(
+		playerStatsStore,
+		tostring(userId),
+		stats,
+		function(success, result)
+			if success then
+				analytics.dirty = false
+				Logging.Event("PlayerStatsSaved", { 
+					u = userId, 
+					playtime = stats.playtime,
+					kdr = stats.kdr,
+					accuracy = stats.averageAccuracy
+				})
+			else
+				Logging.Error("StatisticsAnalytics", "Failed to save stats for " .. userId .. ": " .. tostring(result))
+			end
+		end,
+		"normal"
+	)
 end
 
 function StatisticsAnalytics.GetPlayerStats(player)

@@ -50,6 +50,8 @@ local clientState = {
 }
 
 -- Remote event connections
+-- Connection management for cleanup
+local connections = {}
 local remoteConnections = {}
 
 function ClientManager.Initialize()
@@ -276,22 +278,65 @@ function ClientManager.SetupRemoteHandlers()
 end
 
 function ClientManager.StartPerformanceMonitoring()
-	spawn(function()
-		while true do
+	-- Use optimized performance monitoring with connection pooling
+	local lastUpdate = tick()
+	local frameCount = 0
+	
+	local connection = RunService.Heartbeat:Connect(function()
+		frameCount = frameCount + 1
+		local now = tick()
+		
+		-- Update every second instead of every frame
+		if now - lastUpdate >= 1.0 then
+			systems.PerformanceMonitor.fps = frameCount / (now - lastUpdate)
 			systems.PerformanceMonitor.updateMetrics()
-			wait(1) -- Update every second
+			
+			-- Auto-adjust graphics every 5 seconds
+			if frameCount % 5 == 0 then
+				ClientManager.AutoAdjustGraphics()
+			end
+			
+			frameCount = 0
+			lastUpdate = now
 		end
 	end)
+	
+	-- Store connection for cleanup
+	table.insert(connections, connection)
 end
 
 function ClientManager.StartNetworkMonitoring()
-	spawn(function()
-		while true do
-			-- Monitor network quality
-			-- This would typically involve measuring actual network metrics
-			wait(5)
+	-- Optimized network monitoring with less frequent updates
+	local lastNetworkCheck = tick()
+	
+	local connection = RunService.Heartbeat:Connect(function()
+		local now = tick()
+		
+		-- Check network every 5 seconds instead of continuously
+		if now - lastNetworkCheck >= 5.0 then
+			-- Measure ping to server (placeholder implementation)
+			local pingStart = tick()
+			
+			-- In a real implementation, this would ping the server
+			-- For now, we'll simulate network monitoring
+			systems.NetworkClient.ping = math.random(10, 100)
+			
+			-- Update connection quality based on ping
+			if systems.NetworkClient.ping < 50 then
+				systems.NetworkClient.connectionQuality = "excellent"
+			elseif systems.NetworkClient.ping < 100 then
+				systems.NetworkClient.connectionQuality = "good"
+			elseif systems.NetworkClient.ping < 200 then
+				systems.NetworkClient.connectionQuality = "fair"
+			else
+				systems.NetworkClient.connectionQuality = "poor"
+			end
+			
+			lastNetworkCheck = now
 		end
 	end)
+	
+	table.insert(connections, connection)
 end
 
 function ClientManager.InitializeUI()

@@ -177,25 +177,23 @@ function GameOrchestrator.OnPlayerJoined(player)
 			suspicious = false,
 			afk = false,
 			newPlayer = true
-		}
+		},
+		lastMonitorCheck = os.time(),
+		lastWelcomeMessage = 0
 	}
 	
-	-- Set up player monitoring
-	spawn(function()
-		GameOrchestrator.MonitorPlayer(player)
-	end)
+	-- Schedule delayed operations instead of spawning immediately
+	-- This reduces thread overhead and improves performance
+	local playerState = orchestratorState.playerStates[player.UserId]
 	
-	-- Send welcome message with game info
-	spawn(function()
-		wait(2) -- Let player load in
-		GameOrchestrator.SendWelcomeMessage(player)
-	end)
+	-- Mark for welcome message after 2 seconds
+	playerState.lastWelcomeMessage = os.time() + 2
 	
 	-- Check for returning player bonuses
 	if systems.DataStore then
 		local profile = systems.DataStore.Get(player)
 		if profile and profile.TotalMatches > 0 then
-			orchestratorState.playerStates[player.UserId].flags.newPlayer = false
+			playerState.flags.newPlayer = false
 			GameOrchestrator.HandleReturningPlayer(player, profile)
 		end
 	end
@@ -231,25 +229,33 @@ function GameOrchestrator.MonitorPlayer(player)
 	local playerState = orchestratorState.playerStates[player.UserId]
 	if not playerState then return end
 	
-	while player.Parent and playerState do
-		wait(10) -- Check every 10 seconds
-		
-		-- Update playtime
-		playerState.performance.playtime = os.time() - playerState.joinTime
-		
-		-- Check for AFK
+	local now = os.time()
+	
+	-- Only update if enough time has passed (reduce CPU usage)
+	if now - playerState.lastMonitorCheck < 10 then return end
+	
+	playerState.lastMonitorCheck = now
+	
+	-- Update playtime efficiently
+	playerState.performance.playtime = now - playerState.joinTime
+	
+	-- Check for AFK (once every minute)
+	if now % 60 == 0 then
 		GameOrchestrator.CheckPlayerAFK(player, playerState)
-		
-		-- Check network quality
-		if systems.NetworkManager then
-			local quality = systems.NetworkManager.GetConnectionQuality(player)
-			if quality == "poor" then
-				GameOrchestrator.HandlePoorConnection(player)
-			end
+	end
+	
+	-- Check network quality (integrated with NetworkManager)
+	if systems.NetworkManager then
+		local quality = systems.NetworkManager.GetConnectionQuality(player)
+		if quality == "poor" then
+			GameOrchestrator.HandlePoorConnection(player)
 		end
-		
-		-- Update state reference
-		playerState = orchestratorState.playerStates[player.UserId]
+	end
+	
+	-- Send welcome message if scheduled
+	if playerState.lastWelcomeMessage > 0 and now >= playerState.lastWelcomeMessage then
+		GameOrchestrator.SendWelcomeMessage(player)
+		playerState.lastWelcomeMessage = 0
 	end
 end
 
@@ -393,29 +399,52 @@ function GameOrchestrator.CheckDailyLoginBonus(player, profile)
 end
 
 function GameOrchestrator.StartOrchestrationLoops()
-	-- Main orchestration loop
-	spawn(function()
-		while orchestratorState.initialized do
-			wait(30) -- Run every 30 seconds
+	local RunService = game:GetService("RunService")
+	local lastMainCycle = 0
+	local lastPerformanceCheck = 0
+	local lastAnalyticsUpdate = 0
+	local lastPlayerMonitor = 0
+	
+	-- Single efficient loop instead of multiple spawn threads
+	RunService.Heartbeat:Connect(function()
+		if not orchestratorState.initialized then return end
+		
+		local now = os.time()
+		
+		-- Main orchestration cycle (every 30 seconds)
+		if now - lastMainCycle >= 30 then
 			GameOrchestrator.RunMainOrchestrationCycle()
+			lastMainCycle = now
 		end
-	end)
-	
-	-- Performance monitoring loop
-	spawn(function()
-		while orchestratorState.initialized do
-			wait(60) -- Run every minute
+		
+		-- Performance monitoring (every 60 seconds)
+		if now - lastPerformanceCheck >= 60 then
 			GameOrchestrator.MonitorServerPerformance()
+			lastPerformanceCheck = now
+		end
+		
+		-- Player analytics (every 5 minutes)
+		if now - lastAnalyticsUpdate >= 300 then
+			GameOrchestrator.UpdatePlayerAnalytics()
+			lastAnalyticsUpdate = now
+		end
+		
+		-- Player monitoring (every 10 seconds)
+		if now - lastPlayerMonitor >= 10 then
+			for userId, playerState in pairs(orchestratorState.playerStates) do
+				local player = Players:GetPlayerByUserId(userId)
+				if player then
+					GameOrchestrator.MonitorPlayer(player)
+				else
+					-- Clean up orphaned player states
+					orchestratorState.playerStates[userId] = nil
+				end
+			end
+			lastPlayerMonitor = now
 		end
 	end)
 	
-	-- Player analytics loop
-	spawn(function()
-		while orchestratorState.initialized do
-			wait(300) -- Run every 5 minutes
-			GameOrchestrator.UpdatePlayerAnalytics()
-		end
-	end)
+	print("[GameOrchestrator] Optimized orchestration loops started")
 end
 
 function GameOrchestrator.RunMainOrchestrationCycle()

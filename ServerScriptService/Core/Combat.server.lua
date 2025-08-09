@@ -18,6 +18,12 @@ local ReplayRecorder = require(script.Parent.ReplayRecorder)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local RateLimiter = require(script.Parent.RateLimiter)
 local RankRewards = require(script.Parent.RankRewards)
+local BatchProcessor = require(ReplicatedStorage.Shared.BatchProcessor)
+local PerformanceOptimizer = require(ReplicatedStorage.Shared.PerformanceOptimizer)
+
+-- Initialize performance systems
+PerformanceOptimizer.Initialize()
+BatchProcessor.Initialize()
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -143,7 +149,8 @@ local function updatePlayerStats(player)
 		state.accuracy = (state.hitShots / state.totalShots) * 100
 	end
 	
-	UpdateStatsRemote:FireClient(player, {
+	-- Use batch processor for better performance
+	local statsData = {
 		Health = playerHealth[player],
 		MaxHealth = MAX_HEALTH,
 		Ammo = state.ammo,
@@ -158,7 +165,9 @@ local function updatePlayerStats(player)
 		KillStreak = state.killStreak,
 		LongestKillStreak = state.longestKillStreak,
 		IsReloading = state.isReloading
-	})
+	}
+	
+	BatchProcessor.FireRemoteEventBatched(UpdateStatsRemote, player, statsData, "normal")
 end
 
 local function respawnPlayer(player)
