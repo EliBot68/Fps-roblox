@@ -102,6 +102,61 @@ function ServiceBootstrap.RegisterServices()
 		end
 	})
 	
+	-- Register SecurityValidator (Critical Priority - No Dependencies)
+	ServiceLocator.Register("SecurityValidator", {
+		factory = function(deps)
+			local SecurityValidator = require(ReplicatedStorage.Shared.SecurityValidator)
+			return SecurityValidator.new()
+		end,
+		singleton = true,
+		lazy = false, -- Critical security component
+		priority = 10,
+		tags = {"security", "validation", "critical"},
+		healthCheck = function(instance)
+			return instance and type(instance.ValidateRemoteCall) == "function"
+		end
+	})
+	
+	-- Register AdminAlert System (High Priority - No Dependencies)
+	ServiceLocator.Register("AdminAlert", {
+		factory = function(deps)
+			local AdminAlert = require(ServerScriptService.Core.AdminAlert)
+			local adminAlertInstance = AdminAlert.new()
+			adminAlertInstance:Initialize()
+			return adminAlertInstance
+		end,
+		singleton = true,
+		lazy = false,
+		priority = 9,
+		tags = {"security", "admin", "alerts"},
+		healthCheck = function(instance)
+			return instance and type(instance.SendAlert) == "function"
+		end
+	})
+	
+	-- Register AntiExploit System (Critical Priority - Depends on SecurityValidator and AdminAlert)
+	ServiceLocator.Register("AntiExploit", {
+		factory = function(deps)
+			local AntiExploit = require(ServerScriptService.Core.AntiExploit)
+			local antiExploitInstance = AntiExploit.new()
+			
+			-- Inject dependencies
+			antiExploitInstance:SetSecurityValidator(deps.SecurityValidator)
+			antiExploitInstance:SetAdminAlert(deps.AdminAlert)
+			antiExploitInstance:Initialize()
+			
+			return antiExploitInstance
+		end,
+		singleton = true,
+		dependencies = {"SecurityValidator", "AdminAlert"},
+		lazy = false, -- Critical security component
+		priority = 10,
+		tags = {"security", "exploit", "critical"},
+		healthCheck = function(instance)
+			return instance and type(instance.ValidateRemoteEventCall) == "function"
+		end
+	})
+	
 	-- Register Economy System (Low Priority - No Dependencies)
 	ServiceLocator.Register("CurrencyManager", {
 		factory = function(deps)
@@ -194,7 +249,7 @@ function ServiceBootstrap.Initialize()
 	ServiceBootstrap.SetupMonitoring()
 	
 	-- Step 3: Pre-load critical services
-	local criticalServices = {"AntiCheat", "WeaponServer", "RateLimiter"}
+	local criticalServices = {"SecurityValidator", "AdminAlert", "AntiExploit", "AntiCheat", "WeaponServer", "RateLimiter"}
 	for _, serviceName in ipairs(criticalServices) do
 		local success, service = pcall(function()
 			return ServiceLocator.GetService(serviceName)
