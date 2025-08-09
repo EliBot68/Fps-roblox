@@ -9,6 +9,7 @@ local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 local Matchmaker = require(script.Parent.Matchmaker)
 local Logging = require(ReplicatedStorage.Shared.Logging)
 local Metrics = require(script.Parent.Metrics)
+local AntiCheat = require(script.Parent.AntiCheat)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -82,6 +83,7 @@ function Combat.Fire(plr, origin, direction)
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { plr.Character }
 	local result = workspace:Raycast(origin, direction.Unit * wStats.Range, params)
+	AntiCheat.RecordShot(plr)
 	if result and result.Instance then
 		local hitChar = result.Instance:FindFirstAncestorWhichIsA("Model")
 		if hitChar and hitChar:FindFirstChild("Humanoid") then
@@ -98,6 +100,9 @@ function Combat.Fire(plr, origin, direction)
 					Matchmaker.OnPlayerKill(plr, targetPlayer)
 					health[targetPlayer] = MAX_HEALTH
 					-- Simple immediate respawn placeholder
+					AntiCheat.RecordHit(plr, false)
+				else
+					AntiCheat.RecordHit(plr, false)
 				end
 			end
 		end

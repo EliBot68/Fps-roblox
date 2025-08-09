@@ -11,11 +11,14 @@ local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
 local UIEvents = RemoteRoot:WaitForChild("UIEvents")
 local UpdateStatsRemote = UIEvents:WaitForChild("UpdateStats")
 
+local Localization = require(ReplicatedStorage.Shared.Localization)
+local locale = "EN"
+
 local latest = {}
 
 function UIManager.UpdateStats(stats)
 	latest = stats
-	print(string.format("[UI] HP:%s Ammo:%s/%s K:%s D:%s", stats.Health, stats.Ammo, stats.Reserve, stats.Kills, stats.Deaths))
+	print(string.format("[UI] %s:%s %s:%s/%s K:%s D:%s", Localization.Get(locale,"HUD_HEALTH"), stats.Health, Localization.Get(locale,"HUD_AMMO"), stats.Ammo, stats.Reserve, stats.Kills, stats.Deaths))
 	-- TODO: apply to ScreenGui elements
 end
 
