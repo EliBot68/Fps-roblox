@@ -178,25 +178,25 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 ### Phase 6: Competitive Features
 - [x] Ranked seasons with placement matches (complete season system with placement tracking and leaderboards)
 - [x] Tournament mode for organized competitions (complete tournament UI with bracket visualization and player management)
-- [~] Clan system and team battles (in-memory clans + membership persistence; battles pending)
-- [ ] Advanced statistics and performance analytics
+- [x] Clan system and team battles (complete clan battle system with challenges, server reservations, and wager system)
+- [x] Advanced statistics and performance analytics (comprehensive player analytics with leaderboards and performance tracking)
 
 ### Phase 7: Live Ops & Analytics
 - [x] Real-time metrics dashboards (complete metrics collection with performance monitoring and alerting)
 - [x] Feature flag system for controlled rollouts
 - [x] A/B testing framework (MemoryStore-based experiment system with variant assignment)
-- [ ] Crash / error aggregation & alerting
+- [x] Crash / error aggregation & alerting (comprehensive error tracking with classification and automated alerts)
 
 ### Phase 8: Scalability & Cross-Server
 - [x] Cross-server party matchmaking (MemoryStore queues with party system and server teleportation)
 - [x] Global announcements (MessagingService broadcast with persistent notifications)
-- [ ] Session migration / seamless teleport fallback
+- [x] Session migration / seamless teleport fallback (comprehensive session preservation and server health monitoring)
 - [ ] Sharded leaderboards & caching layer
 
 ### Phase 9: Esports & Integrity
 - [x] Enhanced anti-cheat heuristics + anomaly scoring (complete progressive punishment system with warnings, kicks, and bans)
 - [x] Match recording metadata logs (comprehensive match recording with position tracking and suspicious activity detection)
-- [ ] Admin review tooling & replay proto
+- [x] Admin review tooling & replay proto (complete admin interface for reviewing suspicious matches and applying punishments)
 - [~] Tournament seeding & bracket automation (ELO seeding + progression basic)
 
 ### Phase 10: Continuous Improvement
