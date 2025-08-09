@@ -36,4 +36,31 @@ local Logging = require(game:GetService("ReplicatedStorage").Shared.Logging)
 Metrics.Init()
 Logging.SetMetrics(Metrics)
 
-print("[Bootstrap] Initialization complete")
+-- Set up player spawning in village
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		wait(0.1) -- Small delay to ensure character is fully loaded
+		
+		-- Find a village spawn point
+		local spawnPoints = {}
+		for _, obj in ipairs(game.Workspace:GetChildren()) do
+			if obj:IsA("SpawnLocation") and string.find(obj.Name, "VillageSpawn") then
+				table.insert(spawnPoints, obj)
+			end
+		end
+		
+		if #spawnPoints > 0 then
+			-- Choose random spawn point
+			local randomSpawn = spawnPoints[math.random(1, #spawnPoints)]
+			
+			-- Teleport player to village spawn
+			if character:FindFirstChild("HumanoidRootPart") then
+				character.HumanoidRootPart.CFrame = randomSpawn.CFrame + Vector3.new(0, 3, 0)
+			end
+			
+			Logging.Info(player.Name .. " spawned in village at " .. tostring(randomSpawn.Position))
+		end
+	end)
+end)
+
+print("[Bootstrap] Initialization complete - Village spawn system active")

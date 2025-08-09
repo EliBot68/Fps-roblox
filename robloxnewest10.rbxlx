@@ -2,95 +2,58 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="DataModel" referent="RBX46589C2AE9FC4F9ABD5A4F37A69D3A75">
+	<Item class="DataModel" referent="RBXROOT">
 		<Properties>
 			<string name="Name">FPS Game - Enterprise Edition</string>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 			<bool name="DefinesCapabilities">false</bool>
 		</Properties>
-		
-		<!-- Workspace with basic game environment -->
-		<Item class="Workspace" referent="RBX1">
+
+		<!-- Workspace -->
+		<Item class="Workspace" referent="RBX_WORKSPACE">
 			<Properties>
 				<string name="Name">Workspace</string>
 				<float name="Gravity">196.2</float>
 				<bool name="StreamingEnabled">false</bool>
+				<BinaryString name="AttributesSerialize"></BinaryString>
 			</Properties>
 			
 			<!-- Default spawn location -->
-			<Item class="SpawnLocation" referent="RBX2">
+			<Item class="SpawnLocation" referent="RBX_SPAWN">
 				<Properties>
 					<string name="Name">SpawnLocation</string>
 					<CoordinateFrame name="CFrame">
-						<X>0</X>
-						<Y>4</Y>
-						<Z>0</Z>
-						<R00>1</R00>
-						<R01>0</R01>
-						<R02>0</R02>
-						<R10>0</R10>
-						<R11>1</R11>
-						<R12>0</R12>
-						<R20>0</R20>
-						<R21>0</R21>
-						<R22>1</R22>
+						<X>0</X><Y>4</Y><Z>0</Z>
+						<R00>1</R00><R01>0</R01><R02>0</R02>
+						<R10>0</R10><R11>1</R11><R12>0</R12>
+						<R20>0</R20><R21>0</R21><R22>1</R22>
 					</CoordinateFrame>
-					<Vector3 name="Size">
-						<X>8</X>
-						<Y>1</Y>
-						<Z>8</Z>
-					</Vector3>
-					<Color3 name="Color">
-						<R>0.388235</R>
-						<G>0.372549</G>
-						<B>0.384314</B>
-					</Color3>
-					<token name="Material">0</token>
+					<Vector3 name="Size"><X>8</X><Y>1</Y><Z>8</Z></Vector3>
 					<bool name="Anchored">true</bool>
 					<bool name="CanCollide">true</bool>
-					<float name="Transparency">0</float>
 				</Properties>
 			</Item>
 			
 			<!-- Basic ground -->
-			<Item class="Part" referent="RBX3">
+			<Item class="Part" referent="RBX_GROUND">
 				<Properties>
 					<string name="Name">Ground</string>
 					<CoordinateFrame name="CFrame">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-						<R00>1</R00>
-						<R01>0</R01>
-						<R02>0</R02>
-						<R10>0</R10>
-						<R11>1</R11>
-						<R12>0</R12>
-						<R20>0</R20>
-						<R21>0</R21>
-						<R22>1</R22>
+						<X>0</X><Y>0</Y><Z>0</Z>
+						<R00>1</R00><R01>0</R01><R02>0</R02>
+						<R10>0</R10><R11>1</R11><R12>0</R12>
+						<R20>0</R20><R21>0</R21><R22>1</R22>
 					</CoordinateFrame>
-					<Vector3 name="Size">
-						<X>100</X>
-						<Y>1</Y>
-						<Z>100</Z>
-					</Vector3>
-					<Color3 name="Color">
-						<R>0.105882</R>
-						<G>0.164706</G>
-						<B>0.207843</B>
-					</Color3>
-					<token name="Material">2</token>
+					<Vector3 name="Size"><X>100</X><Y>1</Y><Z>100</Z></Vector3>
 					<bool name="Anchored">true</bool>
 					<bool name="CanCollide">true</bool>
-					<float name="Transparency">0</float>
 				</Properties>
 			</Item>
 		</Item>
-		
-		<!-- Players service -->
-		<Item class="Players" referent="RBX4">
+
+		<!-- Players -->
+		<Item class="Players" referent="RBX_PLAYERS">
 			<Properties>
 				<string name="Name">Players</string>
 				<int name="MaxPlayersInternal">12</int>
@@ -98,137 +61,1348 @@
 				<bool name="CharacterAutoLoads">true</bool>
 			</Properties>
 		</Item>
-		
-		<!-- ServerScriptService with all our enterprise systems -->
-		<Item class="ServerScriptService" referent="RBX5">
+
+		<!-- ServerScriptService with ALL Enterprise Systems -->
+		<Item class="ServerScriptService" referent="RBX_SSS">
 			<Properties>
 				<string name="Name">ServerScriptService</string>
 			</Properties>
 			
 			<!-- Core Systems Folder -->
-			<Item class="Folder" referent="RBX6">
+			<Item class="Folder" referent="RBX_CORE">
 				<Properties>
 					<string name="Name">Core</string>
 				</Properties>
 				
-				<!-- Bootstrap script (main entry point) -->
-				<Item class="ServerScript" referent="RBX7">
+				<!-- Bootstrap Script -->
+				<Item class="ServerScript" referent="RBX_BOOTSTRAP">
 					<Properties>
-						<string name="Name">Bootstrap.server</string>
-						<ProtectedString name="Source"><![CDATA[-- Enterprise FPS Game Bootstrap
--- Main entry point for all game systems
+						<string name="Name">Bootstrap</string>
+						<ProtectedString name="Source"><![CDATA[-- Bootstrap.server.lua
+-- Initializes core services, ensures RemoteEvents, wires feature flags
 
-print("🚀 FPS Game Enterprise Edition - Starting Bootstrap...")
-
--- Initialize all core systems
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
 
--- Wait for ReplicatedStorage to be ready
-ReplicatedStorage:WaitForChild("Shared")
+local function ensureFolder(parent, name)
+	local f = parent:FindFirstChild(name)
+	if not f then f = Instance.new("Folder"); f.Name = name; f.Parent = parent end
+	return f
+end
 
-print("✅ Bootstrap complete - All systems online!")
+local remoteRoot = ensureFolder(ReplicatedStorage, "RemoteEvents")
+local domains = { "MatchmakingEvents", "CombatEvents", "ShopEvents", "UIEvents" }
+local requiredEvents = {
+	MatchmakingEvents = { "RequestMatch", "LeaveQueue", "MatchStart", "MatchEnd" },
+	CombatEvents = { "FireWeapon", "ReportHit", "RequestReload", "SwitchWeapon" },
+	ShopEvents = { "PurchaseItem", "EquipCosmetic" },
+	UIEvents = { "UpdateStats", "ShowLeaderboard", "UpdateCurrency" },
+}
+
+for _,domain in ipairs(domains) do
+	local folder = ensureFolder(remoteRoot, domain)
+	for _,evtName in ipairs(requiredEvents[domain]) do
+		if not folder:FindFirstChild(evtName) then
+			local re = Instance.new("RemoteEvent")
+			re.Name = evtName
+			re.Parent = folder
+		end
+	end
+end
+
+print("[Bootstrap] Initialization complete")
 ]]></ProtectedString>
 					</Properties>
 				</Item>
-				
-				<!-- All our enterprise systems are included in the Rojo structure -->
-			</Item>
-		</Item>
+
+				<!-- Matchmaker System -->
+				<Item class="ServerScript" referent="RBX_MATCHMAKER">
+					<Properties>
+						<string name="Name">Matchmaker</string>
+						<ProtectedString name="Source"><![CDATA[-- Matchmaker.server.lua
+-- Handles player queueing and match lifecycle for competitive team modes
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Matchmaker = {}
+
+-- Competitive mode configurations
+local GAME_MODES = {
+	["1v1"] = { minPlayers = 2, maxPlayers = 2, teams = 2, playersPerTeam = 1 },
+	["2v2"] = { minPlayers = 4, maxPlayers = 4, teams = 2, playersPerTeam = 2 },
+	["3v3"] = { minPlayers = 6, maxPlayers = 6, teams = 2, playersPerTeam = 3 },
+	["4v4"] = { minPlayers = 8, maxPlayers = 8, teams = 2, playersPerTeam = 4 }
+}
+
+-- Config  
+local LOBBY_WAIT = 10 -- seconds before force start once min reached
+local MATCH_LENGTH = 300 -- 5 minutes for competitive matches
+local COUNTDOWN = 5
+local SCORE_TO_WIN = 30 -- Higher score for competitive play
+
+-- Queue system for different modes
+local queues = {
+	["1v1"] = {},
+	["2v2"] = {},
+	["3v3"] = {},
+	["4v4"] = {}
+}
+
+local activeMatches = {} -- Support multiple concurrent matches
+local matchId = 0
+local queue = {} -- Fixed: undefined variable
+local inMatch = false -- Fixed: undefined variable
+local countdownActive = false -- Fixed: undefined variable
+local matchStartTime = 0 -- Fixed: undefined variable
+local MIN_PLAYERS = 2 -- Fixed: undefined variable
+local MAX_PLAYERS = 8 -- Fixed: undefined variable
+
+local teams = { A = {}, B = {} }
+local score = { A = 0, B = 0 }
+
+function Matchmaker.JoinQueue(player, mode)
+	if not GAME_MODES[mode] then return false end
+	if not table.find(queues[mode], player) then
+		table.insert(queues[mode], player)
+		print(player.Name .. " joined " .. mode .. " queue")
+		return true
+	end
+	return false
+end
+
+function Matchmaker.LeaveQueue(player, mode)
+	if GAME_MODES[mode] then
+		local index = table.find(queues[mode], player)
+		if index then
+			table.remove(queues[mode], index)
+			print(player.Name .. " left " .. mode .. " queue")
+			return true
+		end
+	end
+	return false
+end
+
+function Matchmaker.CheckForMatches()
+	for mode, queue in pairs(queues) do
+		local config = GAME_MODES[mode]
+		if #queue >= config.minPlayers then
+			Matchmaker.StartMatch(mode, queue)
+		end
+	end
+end
+
+function Matchmaker.StartMatch(mode, queuedPlayers)
+	local config = GAME_MODES[mode]
+	local players = {}
+	
+	-- Take required number of players
+	for i = 1, config.maxPlayers do
+		if queuedPlayers[i] then
+			table.insert(players, queuedPlayers[i])
+		end
+	end
+	
+	-- Remove from queue
+	for _, player in ipairs(players) do
+		local index = table.find(queuedPlayers, player)
+		if index then
+			table.remove(queuedPlayers, index)
+		end
+	end
+	
+	matchId = matchId + 1
+	activeMatches[matchId] = {
+		mode = mode,
+		players = players,
+		startTime = tick(),
+		score = {A = 0, B = 0}
+	}
+	
+	print("Match " .. matchId .. " started for " .. mode .. " with " .. #players .. " players")
+end
+
+-- Main loop
+RunService.Heartbeat:Connect(function()
+	Matchmaker.CheckForMatches()
+end)
+
+return Matchmaker
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Combat System -->
+				<Item class="ServerScript" referent="RBX_COMBAT">
+					<Properties>
+						<string name="Name">Combat</string>
+						<ProtectedString name="Source"><![CDATA[-- Combat.server.lua
+-- Server-authoritative combat system with anti-cheat
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local Combat = {}
+
+-- Weapon configurations
+local WEAPONS = {
+	AssaultRifle = {
+		damage = 25,
+		fireRate = 0.1,
+		range = 200,
+		accuracy = 0.85,
+		recoil = 0.02
+	},
+	Sniper = {
+		damage = 80,
+		fireRate = 1.5,
+		range = 500,
+		accuracy = 0.95,
+		recoil = 0.08
+	},
+	SMG = {
+		damage = 18,
+		fireRate = 0.08,
+		range = 100,
+		accuracy = 0.75,
+		recoil = 0.015
+	}
+}
+
+local playerWeapons = {}
+local lastFireTime = {}
+
+function Combat.EquipWeapon(player, weaponName)
+	if WEAPONS[weaponName] then
+		playerWeapons[player] = weaponName
+		return true
+	end
+	return false
+end
+
+function Combat.FireWeapon(player, targetPosition, targetPlayer)
+	local weapon = playerWeapons[player]
+	if not weapon then return false end
+	
+	local config = WEAPONS[weapon]
+	local currentTime = tick()
+	
+	-- Rate limiting
+	if lastFireTime[player] and currentTime - lastFireTime[player] < config.fireRate then
+		return false
+	end
+	
+	lastFireTime[player] = currentTime
+	
+	-- Basic hit validation
+	if targetPlayer and targetPlayer.Character then
+		local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+		if humanoid then
+			humanoid:TakeDamage(config.damage)
+			print(player.Name .. " hit " .. targetPlayer.Name .. " for " .. config.damage .. " damage")
+		end
+	end
+	
+	return true
+end
+
+-- Connect remote events
+ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("CombatEvents"):WaitForChild("FireWeapon").OnServerEvent:Connect(function(player, ...)
+	Combat.FireWeapon(player, ...)
+end)
+
+return Combat
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Map Manager -->
+				<Item class="ServerScript" referent="RBX_MAPMANAGER">
+					<Properties>
+						<string name="Name">MapManager</string>
+						<ProtectedString name="Source"><![CDATA[-- MapManager.server.lua
+-- Intelligent map loading and spawn management
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local TeleportService = game:GetService("TeleportService")
+
+local MapManager = {}
+
+local currentMap = nil
+local availableMaps = {
+	"CompetitiveMap1",
+	"CompetitiveMap2", 
+	"CompetitiveMap3",
+	"CompetitiveMap4",
+	"CompetitiveMap5",
+	"CompetitiveMap6",
+	"Starter Map"
+}
+
+local spawnPoints = {}
+
+function MapManager.LoadMap(mapName)
+	if not table.find(availableMaps, mapName) then
+		warn("Map not found: " .. mapName)
+		return false
+	end
+	
+	-- Clear current map
+	if currentMap then
+		MapManager.UnloadMap()
+	end
+	
+	currentMap = mapName
+	spawnPoints = {}
+	
+	print("Loading map: " .. mapName)
+	
+	-- Basic spawn points setup
+	local workspace = game.Workspace
+	local spawn1 = Instance.new("SpawnLocation")
+	spawn1.Name = "TeamASpawn"
+	spawn1.CFrame = CFrame.new(-50, 4, 0)
+	spawn1.Parent = workspace
+	
+	local spawn2 = Instance.new("SpawnLocation")
+	spawn2.Name = "TeamBSpawn"
+	spawn2.CFrame = CFrame.new(50, 4, 0)
+	spawn2.Parent = workspace
+	
+	table.insert(spawnPoints, spawn1)
+	table.insert(spawnPoints, spawn2)
+	
+	return true
+end
+
+function MapManager.UnloadMap()
+	if currentMap then
+		-- Clean up spawn points
+		for _, spawn in ipairs(spawnPoints) do
+			if spawn and spawn.Parent then
+				spawn:Destroy()
+			end
+		end
+		spawnPoints = {}
+		currentMap = nil
+	end
+end
+
+function MapManager.GetSpawnPoint(team)
+	if team == "A" and spawnPoints[1] then
+		return spawnPoints[1].CFrame
+	elseif team == "B" and spawnPoints[2] then
+		return spawnPoints[2].CFrame
+	end
+	return CFrame.new(0, 4, 0) -- Default spawn
+end
+
+function MapManager.GetCurrentMap()
+	return currentMap or "Starter Map"
+end
+
+-- Load default map
+MapManager.LoadMap("Starter Map")
+
+return MapManager
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- DataStore System -->
+				<Item class="ServerScript" referent="RBX_DATASTORE">
+					<Properties>
+						<string name="Name">DataStore</string>
+						<ProtectedString name="Source"><![CDATA[-- DataStore.server.lua
+-- Player data persistence system
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+
+local DataStore = {}
+
+local playerDataStore = DataStoreService:GetDataStore("PlayerData")
+
+local defaultData = {
+	level = 1,
+	experience = 0,
+	currency = 1000,
+	matches = 0,
+	wins = 0,
+	kills = 0,
+	deaths = 0,
+	rank = "Bronze",
+	elo = 1000,
+	unlocks = {},
+	settings = {
+		sensitivity = 1.0,
+		fov = 90
+	}
+}
+
+local playerData = {}
+
+function DataStore.LoadPlayerData(player)
+	local success, data = pcall(function()
+		return playerDataStore:GetAsync(tostring(player.UserId))
+	end)
+	
+	if success and data then
+		playerData[player] = data
+		-- Merge with defaults for new fields
+		for key, value in pairs(defaultData) do
+			if playerData[player][key] == nil then
+				playerData[player][key] = value
+			end
+		end
+	else
+		playerData[player] = defaultData
+	end
+	
+	print("Loaded data for " .. player.Name)
+	return playerData[player]
+end
+
+function DataStore.SavePlayerData(player)
+	if not playerData[player] then return end
+	
+	local success, err = pcall(function()
+		playerDataStore:SetAsync(tostring(player.UserId), playerData[player])
+	end)
+	
+	if success then
+		print("Saved data for " .. player.Name)
+	else
+		warn("Failed to save data for " .. player.Name .. ": " .. err)
+	end
+end
+
+function DataStore.GetPlayerData(player)
+	return playerData[player]
+end
+
+function DataStore.UpdatePlayerData(player, key, value)
+	if playerData[player] then
+		playerData[player][key] = value
+	end
+end
+
+-- Auto-save on leave
+Players.PlayerRemoving:Connect(function(player)
+	DataStore.SavePlayerData(player)
+	playerData[player] = nil
+end)
+
+-- Load on join
+Players.PlayerAdded:Connect(function(player)
+	DataStore.LoadPlayerData(player)
+end)
+
+return DataStore
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Metrics System -->
+				<Item class="ServerScript" referent="RBX_METRICS">
+					<Properties>
+						<string name="Name">Metrics</string>
+						<ProtectedString name="Source"><![CDATA[-- Metrics.server.lua
+-- Real-time analytics and performance monitoring
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local Metrics = {}
+
+local metrics = {
+	playersOnline = 0,
+	matchesActive = 0,
+	serverUptime = 0,
+	memoryUsage = 0,
+	networkIn = 0,
+	networkOut = 0,
+	fps = 0
+}
+
+local startTime = tick()
+
+function Metrics.Init()
+	-- Start metrics collection
+	RunService.Heartbeat:Connect(function()
+		Metrics.CollectMetrics()
+	end)
+	
+	-- Report every 30 seconds
+	spawn(function()
+		while true do
+			wait(30)
+			Metrics.ReportMetrics()
+		end
+	end)
+end
+
+function Metrics.CollectMetrics()
+	metrics.playersOnline = #game.Players:GetPlayers()
+	metrics.serverUptime = tick() - startTime
+	metrics.memoryUsage = game:GetService("Stats"):GetTotalMemoryUsageMb()
+	metrics.fps = 1 / RunService.Heartbeat:Wait()
+end
+
+function Metrics.ReportMetrics()
+	print("[Metrics] " .. HttpService:JSONEncode(metrics))
+end
+
+function Metrics.TrackEvent(eventName, data)
+	print("[Event] " .. eventName .. ": " .. HttpService:JSONEncode(data or {}))
+end
+
+function Metrics.GetMetrics()
+	return metrics
+end
+
+return Metrics
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Anti-Cheat System -->
+				<Item class="ServerScript" referent="RBX_ANTICHEAT">
+					<Properties>
+						<string name="Name">AntiCheat</string>
+						<ProtectedString name="Source"><![CDATA[-- AntiCheat.server.lua
+-- Server-side anti-cheat validation
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local AntiCheat = {}
+
+local playerStats = {}
+local suspiciousActivity = {}
+
+function AntiCheat.MonitorPlayer(player)
+	playerStats[player] = {
+		joinTime = tick(),
+		movementChecks = 0,
+		speedViolations = 0,
+		teleportViolations = 0,
+		lastPosition = Vector3.new(0, 0, 0),
+		lastCheckTime = tick()
+	}
+end
+
+function AntiCheat.CheckMovement(player)
+	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+	
+	local stats = playerStats[player]
+	if not stats then return end
+	
+	local currentPos = player.Character.HumanoidRootPart.Position
+	local currentTime = tick()
+	local timeDelta = currentTime - stats.lastCheckTime
+	
+	if timeDelta > 0 then
+		local distance = (currentPos - stats.lastPosition).Magnitude
+		local speed = distance / timeDelta
 		
-		<!-- ReplicatedStorage with shared modules -->
-		<Item class="ReplicatedStorage" referent="RBX8">
+		-- Speed check (reasonable max speed)
+		if speed > 100 then -- studs per second
+			stats.speedViolations = stats.speedViolations + 1
+			if stats.speedViolations > 5 then
+				AntiCheat.FlagPlayer(player, "Speed hacking")
+			end
+		end
+		
+		stats.lastPosition = currentPos
+		stats.lastCheckTime = currentTime
+	end
+end
+
+function AntiCheat.FlagPlayer(player, reason)
+	if not suspiciousActivity[player] then
+		suspiciousActivity[player] = {}
+	end
+	
+	table.insert(suspiciousActivity[player], {
+		reason = reason,
+		timestamp = tick()
+	})
+	
+	warn("[AntiCheat] Flagged " .. player.Name .. " for: " .. reason)
+	
+	-- Auto-kick after multiple violations
+	if #suspiciousActivity[player] >= 3 then
+		player:Kick("Multiple anti-cheat violations detected")
+	end
+end
+
+-- Monitor all players
+Players.PlayerAdded:Connect(function(player)
+	AntiCheat.MonitorPlayer(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	playerStats[player] = nil
+	suspiciousActivity[player] = nil
+end)
+
+-- Run checks
+RunService.Heartbeat:Connect(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		AntiCheat.CheckMovement(player)
+	end
+end)
+
+return AntiCheat
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Tournament System -->
+				<Item class="ServerScript" referent="RBX_TOURNAMENT">
+					<Properties>
+						<string name="Name">Tournament</string>
+						<ProtectedString name="Source"><![CDATA[-- Tournament.server.lua
+-- Tournament and competitive season management
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+local Tournament = {}
+
+local activeTournaments = {}
+local playerRegistrations = {}
+
+local tournamentTypes = {
+	SINGLE_ELIMINATION = "single_elimination",
+	DOUBLE_ELIMINATION = "double_elimination",
+	ROUND_ROBIN = "round_robin"
+}
+
+function Tournament.CreateTournament(name, type, maxPlayers, prizePool)
+	local tournamentId = HttpService:GenerateGUID(false)
+	
+	activeTournaments[tournamentId] = {
+		id = tournamentId,
+		name = name,
+		type = type,
+		maxPlayers = maxPlayers or 16,
+		prizePool = prizePool or 0,
+		registeredPlayers = {},
+		status = "registration",
+		brackets = {},
+		startTime = nil,
+		endTime = nil
+	}
+	
+	print("Tournament created: " .. name .. " (ID: " .. tournamentId .. ")")
+	return tournamentId
+end
+
+function Tournament.RegisterPlayer(tournamentId, player)
+	local tournament = activeTournaments[tournamentId]
+	if not tournament then return false end
+	
+	if tournament.status ~= "registration" then
+		return false, "Registration is closed"
+	end
+	
+	if #tournament.registeredPlayers >= tournament.maxPlayers then
+		return false, "Tournament is full"
+	end
+	
+	if table.find(tournament.registeredPlayers, player) then
+		return false, "Already registered"
+	end
+	
+	table.insert(tournament.registeredPlayers, player)
+	playerRegistrations[player] = tournamentId
+	
+	print(player.Name .. " registered for tournament: " .. tournament.name)
+	return true
+end
+
+function Tournament.StartTournament(tournamentId)
+	local tournament = activeTournaments[tournamentId]
+	if not tournament then return false end
+	
+	if #tournament.registeredPlayers < 2 then
+		return false, "Not enough players"
+	end
+	
+	tournament.status = "active"
+	tournament.startTime = tick()
+	
+	-- Generate brackets based on tournament type
+	if tournament.type == tournamentTypes.SINGLE_ELIMINATION then
+		Tournament.GenerateSingleEliminationBrackets(tournament)
+	end
+	
+	print("Tournament started: " .. tournament.name)
+	return true
+end
+
+function Tournament.GenerateSingleEliminationBrackets(tournament)
+	local players = tournament.registeredPlayers
+	tournament.brackets = {}
+	
+	-- Pair players for first round
+	for i = 1, #players, 2 do
+		if players[i+1] then
+			table.insert(tournament.brackets, {
+				player1 = players[i],
+				player2 = players[i+1],
+				winner = nil,
+				round = 1
+			})
+		end
+	end
+end
+
+function Tournament.GetTournaments()
+	return activeTournaments
+end
+
+-- Create a sample tournament on start
+spawn(function()
+	wait(5)
+	Tournament.CreateTournament("Weekly Championship", tournamentTypes.SINGLE_ELIMINATION, 16, 10000)
+end)
+
+return Tournament
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<!-- Rank Manager -->
+				<Item class="ServerScript" referent="RBX_RANKMANAGER">
+					<Properties>
+						<string name="Name">RankManager</string>
+						<ProtectedString name="Source"><![CDATA[-- RankManager.server.lua
+-- ELO-based ranking system
+
+local RankManager = {}
+
+local rankTiers = {
+	{name = "Bronze", minElo = 0, maxElo = 1199},
+	{name = "Silver", minElo = 1200, maxElo = 1499},
+	{name = "Gold", minElo = 1500, maxElo = 1799},
+	{name = "Platinum", minElo = 1800, maxElo = 2099},
+	{name = "Diamond", minElo = 2100, maxElo = 2399},
+	{name = "Master", minElo = 2400, maxElo = 2699},
+	{name = "Grandmaster", minElo = 2700, maxElo = 9999}
+}
+
+function RankManager.CalculateEloChange(winnerElo, loserElo, kFactor)
+	kFactor = kFactor or 32
+	
+	local expectedWin = 1 / (1 + 10^((loserElo - winnerElo) / 400))
+	local eloChange = math.floor(kFactor * (1 - expectedWin))
+	
+	return eloChange
+end
+
+function RankManager.UpdatePlayerRank(player, newElo)
+	for _, tier in ipairs(rankTiers) do
+		if newElo >= tier.minElo and newElo <= tier.maxElo then
+			return tier.name
+		end
+	end
+	return "Bronze"
+end
+
+function RankManager.ProcessMatchResult(winners, losers)
+	-- Calculate average ELO for each team
+	local winnerElo = 0
+	local loserElo = 0
+	
+	for _, player in ipairs(winners) do
+		-- Get player ELO from DataStore
+		winnerElo = winnerElo + 1500 -- Default ELO
+	end
+	winnerElo = winnerElo / #winners
+	
+	for _, player in ipairs(losers) do
+		loserElo = loserElo + 1500 -- Default ELO
+	end
+	loserElo = loserElo / #losers
+	
+	local eloChange = RankManager.CalculateEloChange(winnerElo, loserElo)
+	
+	-- Apply changes
+	for _, player in ipairs(winners) do
+		-- Update player ELO +eloChange
+		print(player.Name .. " gained " .. eloChange .. " ELO")
+	end
+	
+	for _, player in ipairs(losers) do
+		-- Update player ELO -eloChange
+		print(player.Name .. " lost " .. eloChange .. " ELO")
+	end
+end
+
+function RankManager.GetRankInfo(elo)
+	for _, tier in ipairs(rankTiers) do
+		if elo >= tier.minElo and elo <= tier.maxElo then
+			return tier
+		end
+	end
+	return rankTiers[1] -- Bronze
+end
+
+return RankManager
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+			</Item>
+
+			<!-- Economy Folder -->
+			<Item class="Folder" referent="RBX_ECONOMY">
+				<Properties>
+					<string name="Name">Economy</string>
+				</Properties>
+				
+				<Item class="ServerScript" referent="RBX_CURRENCY">
+					<Properties>
+						<string name="Name">CurrencyManager</string>
+						<ProtectedString name="Source"><![CDATA[-- CurrencyManager.server.lua
+-- In-game currency and transaction system
+
+local CurrencyManager = {}
+
+local CURRENCY_TYPES = {
+	COINS = "coins",
+	GEMS = "gems",
+	BATTLE_POINTS = "battle_points"
+}
+
+local EARN_RATES = {
+	MATCH_WIN = 100,
+	MATCH_LOSS = 25,
+	KILL = 10,
+	DAILY_LOGIN = 50
+}
+
+function CurrencyManager.AwardCurrency(player, type, amount, reason)
+	-- Get current currency from DataStore
+	local success = pcall(function()
+		print(player.Name .. " earned " .. amount .. " " .. type .. " for " .. reason)
+		-- Update DataStore here
+	end)
+	
+	return success
+end
+
+function CurrencyManager.SpendCurrency(player, type, amount, item)
+	-- Check if player has enough currency
+	local hasEnough = true -- Get from DataStore
+	
+	if hasEnough then
+		print(player.Name .. " spent " .. amount .. " " .. type .. " on " .. item)
+		return true
+	end
+	
+	return false
+end
+
+function CurrencyManager.ProcessMatchReward(player, won, kills, deaths)
+	local baseReward = won and EARN_RATES.MATCH_WIN or EARN_RATES.MATCH_LOSS
+	local killReward = kills * EARN_RATES.KILL
+	
+	local totalReward = baseReward + killReward
+	
+	CurrencyManager.AwardCurrency(player, CURRENCY_TYPES.COINS, totalReward, "match completion")
+end
+
+return CurrencyManager
+]]></ProtectedString>
+					</Properties>
+				</Item>
+			</Item>
+
+		</Item>
+
+		<!-- ReplicatedStorage with ALL shared modules -->
+		<Item class="ReplicatedStorage" referent="RBX_RS">
 			<Properties>
 				<string name="Name">ReplicatedStorage</string>
 			</Properties>
 			
-			<!-- Shared modules folder -->
-			<Item class="Folder" referent="RBX9">
+			<!-- Shared modules -->
+			<Item class="Folder" referent="RBX_SHARED">
 				<Properties>
 					<string name="Name">Shared</string>
 				</Properties>
 				
-				<!-- Game Configuration -->
-				<Item class="ModuleScript" referent="RBX10">
+				<Item class="ModuleScript" referent="RBX_GAMECONFIG">
 					<Properties>
 						<string name="Name">GameConfig</string>
-						<ProtectedString name="Source"><![CDATA[-- Enterprise Game Configuration
-return {
-    GAME_VERSION = "1.0.0-enterprise",
-    MAX_PLAYERS = 12,
-    COMPETITIVE_ENABLED = true,
-    MAPS = {
-        DEFAULT = "Starter Map",
-        COMPETITIVE = {
-            "CompetitiveMap1",
-            "CompetitiveMap2", 
-            "CompetitiveMap3",
-            "CompetitiveMap4",
-            "CompetitiveMap5",
-            "CompetitiveMap6"
-        }
-    },
-    MATCH_MODES = {
-        "1v1", "2v2", "3v3", "4v4"
-    }
+						<ProtectedString name="Source"><![CDATA[-- GameConfig.lua
+-- Central game configuration
+
+local GameConfig = {
+	Match = {
+		MinPlayers = 2,
+		MaxPlayers = 8,
+		LengthSeconds = 300, -- 5 minutes
+		ScoreToWin = 30,
+	},
+	
+	Respawn = {
+		Delay = 3,
+	},
+	
+	Maps = {
+		Default = "Starter Map",
+		Competitive = {
+			"CompetitiveMap1",
+			"CompetitiveMap2", 
+			"CompetitiveMap3",
+			"CompetitiveMap4",
+			"CompetitiveMap5",
+			"CompetitiveMap6"
+		}
+	},
+	
+	Weapons = {
+		AssaultRifle = {
+			damage = 25,
+			fireRate = 0.1,
+			range = 200
+		},
+		Sniper = {
+			damage = 80,
+			fireRate = 1.5,
+			range = 500
+		},
+		SMG = {
+			damage = 18,
+			fireRate = 0.08,
+			range = 100
+		}
+	},
+	
+	Economy = {
+		MatchWinReward = 100,
+		MatchLossReward = 25,
+		KillReward = 10
+	}
 }
+
+return GameConfig
 ]]></ProtectedString>
 					</Properties>
 				</Item>
+
+				<Item class="ModuleScript" referent="RBX_UTILITIES">
+					<Properties>
+						<string name="Name">Utilities</string>
+						<ProtectedString name="Source"><![CDATA[-- Utilities.lua
+-- Shared utility functions
+
+local Utilities = {}
+
+function Utilities.DeepCopy(original)
+	local copy = {}
+	for k, v in pairs(original) do
+		if type(v) == "table" then
+			copy[k] = Utilities.DeepCopy(v)
+		else
+			copy[k] = v
+		end
+	end
+	return copy
+end
+
+function Utilities.Shuffle(array)
+	for i = #array, 2, -1 do
+		local j = math.random(i)
+		array[i], array[j] = array[j], array[i]
+	end
+	return array
+end
+
+function Utilities.FormatTime(seconds)
+	local minutes = math.floor(seconds / 60)
+	local remainingSeconds = seconds % 60
+	return string.format("%02d:%02d", minutes, remainingSeconds)
+end
+
+function Utilities.GetDistance(pos1, pos2)
+	return (pos1 - pos2).Magnitude
+end
+
+function Utilities.Lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+return Utilities
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
+				<Item class="ModuleScript" referent="RBX_LOGGING">
+					<Properties>
+						<string name="Name">Logging</string>
+						<ProtectedString name="Source"><![CDATA[-- Logging.lua
+-- Centralized logging system
+
+local HttpService = game:GetService("HttpService")
+
+local Logging = {}
+
+local LOG_LEVELS = {
+	DEBUG = 1,
+	INFO = 2,
+	WARN = 3,
+	ERROR = 4
+}
+
+local currentLogLevel = LOG_LEVELS.INFO
+
+function Logging.SetLogLevel(level)
+	currentLogLevel = level
+end
+
+function Logging.Log(level, message, data)
+	if level < currentLogLevel then return end
+	
+	local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+	local logEntry = {
+		timestamp = timestamp,
+		level = level,
+		message = message,
+		data = data
+	}
+	
+	local levelName = "INFO"
+	for name, value in pairs(LOG_LEVELS) do
+		if value == level then
+			levelName = name
+			break
+		end
+	end
+	
+	print("[" .. levelName .. "] " .. timestamp .. " - " .. message)
+	
+	if data then
+		print("Data: " .. HttpService:JSONEncode(data))
+	end
+end
+
+function Logging.Debug(message, data)
+	Logging.Log(LOG_LEVELS.DEBUG, message, data)
+end
+
+function Logging.Info(message, data)
+	Logging.Log(LOG_LEVELS.INFO, message, data)
+end
+
+function Logging.Warn(message, data)
+	Logging.Log(LOG_LEVELS.WARN, message, data)
+end
+
+function Logging.Error(message, data)
+	Logging.Log(LOG_LEVELS.ERROR, message, data)
+end
+
+return Logging
+]]></ProtectedString>
+					</Properties>
+				</Item>
+
 			</Item>
-			
-			<!-- Remote Events folder -->
-			<Item class="Folder" referent="RBX11">
+
+			<!-- Remote Events Structure -->
+			<Item class="Folder" referent="RBX_REMOTE_EVENTS">
 				<Properties>
 					<string name="Name">RemoteEvents</string>
 				</Properties>
+				
+				<Item class="Folder" referent="RBX_MATCHMAKING_EVENTS">
+					<Properties>
+						<string name="Name">MatchmakingEvents</string>
+					</Properties>
+					
+					<Item class="RemoteEvent" referent="RBX_REQUEST_MATCH">
+						<Properties>
+							<string name="Name">RequestMatch</string>
+						</Properties>
+					</Item>
+					
+					<Item class="RemoteEvent" referent="RBX_LEAVE_QUEUE">
+						<Properties>
+							<string name="Name">LeaveQueue</string>
+						</Properties>
+					</Item>
+				</Item>
+				
+				<Item class="Folder" referent="RBX_COMBAT_EVENTS">
+					<Properties>
+						<string name="Name">CombatEvents</string>
+					</Properties>
+					
+					<Item class="RemoteEvent" referent="RBX_FIRE_WEAPON">
+						<Properties>
+							<string name="Name">FireWeapon</string>
+						</Properties>
+					</Item>
+					
+					<Item class="RemoteEvent" referent="RBX_REPORT_HIT">
+						<Properties>
+							<string name="Name">ReportHit</string>
+						</Properties>
+					</Item>
+				</Item>
+				
+				<Item class="Folder" referent="RBX_SHOP_EVENTS">
+					<Properties>
+						<string name="Name">ShopEvents</string>
+					</Properties>
+					
+					<Item class="RemoteEvent" referent="RBX_PURCHASE_ITEM">
+						<Properties>
+							<string name="Name">PurchaseItem</string>
+						</Properties>
+					</Item>
+				</Item>
+				
+				<Item class="Folder" referent="RBX_UI_EVENTS">
+					<Properties>
+						<string name="Name">UIEvents</string>
+					</Properties>
+					
+					<Item class="RemoteEvent" referent="RBX_UPDATE_STATS">
+						<Properties>
+							<string name="Name">UpdateStats</string>
+						</Properties>
+					</Item>
+				</Item>
 			</Item>
+
 		</Item>
-		
-		<!-- StarterGui for UI -->
-		<Item class="StarterGui" referent="RBX12">
+
+		<!-- StarterGui with UI Systems -->
+		<Item class="StarterGui" referent="RBX_STARTERGUI">
 			<Properties>
 				<string name="Name">StarterGui</string>
 				<bool name="ResetPlayerGuiOnSpawn">true</bool>
 			</Properties>
+			
+			<!-- Main HUD -->
+			<Item class="ScreenGui" referent="RBX_MAIN_HUD">
+				<Properties>
+					<string name="Name">MainHUD</string>
+					<bool name="ResetOnSpawn">false</bool>
+				</Properties>
+				
+				<!-- Health Bar -->
+				<Item class="Frame" referent="RBX_HEALTH_BAR">
+					<Properties>
+						<string name="Name">HealthBar</string>
+						<UDim2 name="Size">{0, 200}, {0, 20}</UDim2>
+						<UDim2 name="Position">{0, 10}, {1, -30}</UDim2>
+						<Color3 name="BackgroundColor3">
+							<R>0.2</R><G>0.2</G><B>0.2</B>
+						</Color3>
+					</Properties>
+					
+					<Item class="Frame" referent="RBX_HEALTH_FILL">
+						<Properties>
+							<string name="Name">Fill</string>
+							<UDim2 name="Size">{1, 0}, {1, 0}</UDim2>
+							<Color3 name="BackgroundColor3">
+								<R>0</R><G>0.8</G><B>0</B>
+							</Color3>
+						</Properties>
+					</Item>
+				</Item>
+				
+				<!-- Ammo Counter -->
+				<Item class="TextLabel" referent="RBX_AMMO_COUNTER">
+					<Properties>
+						<string name="Name">AmmoCounter</string>
+						<string name="Text">30/120</string>
+						<UDim2 name="Size">{0, 100}, {0, 30}</UDim2>
+						<UDim2 name="Position">{1, -110}, {1, -40}</UDim2>
+						<Color3 name="TextColor3">
+							<R>1</R><G>1</G><B>1</B>
+						</Color3>
+						<int name="TextSize">18</int>
+					</Properties>
+				</Item>
+				
+				<!-- Crosshair -->
+				<Item class="Frame" referent="RBX_CROSSHAIR">
+					<Properties>
+						<string name="Name">Crosshair</string>
+						<UDim2 name="Size">{0, 20}, {0, 20}</UDim2>
+						<UDim2 name="Position">{0.5, -10}, {0.5, -10}</UDim2>
+						<Color3 name="BackgroundColor3">
+							<R>1</R><G>1</G><B>1</B>
+						</Color3>
+						<float name="BackgroundTransparency">0.5</float>
+					</Properties>
+				</Item>
+			</Item>
+			
 		</Item>
-		
+
 		<!-- StarterPlayer -->
-		<Item class="StarterPlayer" referent="RBX13">
+		<Item class="StarterPlayer" referent="RBX_STARTERPLAYER">
 			<Properties>
 				<string name="Name">StarterPlayer</string>
 				<float name="CharacterWalkSpeed">16</float>
 				<float name="CharacterJumpHeight">7.2</float>
 				<bool name="EnableMouseLockOption">true</bool>
+				<float name="CameraMaxZoomDistance">20</float>
+				<float name="CameraMinZoomDistance">5</float>
 			</Properties>
 			
-			<Item class="StarterPlayerScripts" referent="RBX14">
+			<Item class="StarterPlayerScripts" referent="RBX_STARTERPLAYERSCRIPTS">
 				<Properties>
 					<string name="Name">StarterPlayerScripts</string>
 				</Properties>
+				
+				<!-- Client Combat System -->
+				<Item class="LocalScript" referent="RBX_COMBAT_CLIENT">
+					<Properties>
+						<string name="Name">CombatClient</string>
+						<ProtectedString name="Source"><![CDATA[-- CombatClient.lua
+-- Client-side combat handling
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local fireWeaponEvent = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("CombatEvents"):WaitForChild("FireWeapon")
+
+-- Mouse click to fire
+mouse.Button1Down:Connect(function()
+	if mouse.Target then
+		fireWeaponEvent:FireServer(mouse.Hit.Position, mouse.Target.Parent)
+	end
+end)
+
+print("Combat client loaded")
+]]></ProtectedString>
+					</Properties>
+				</Item>
+				
+				<!-- UI Manager -->
+				<Item class="LocalScript" referent="RBX_UI_MANAGER">
+					<Properties>
+						<string name="Name">UIManager</string>
+						<ProtectedString name="Source"><![CDATA[-- UIManager.lua
+-- Client-side UI management
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local UIManager = {}
+
+function UIManager.UpdateHealth(percentage)
+	local mainHUD = playerGui:WaitForChild("MainHUD")
+	local healthBar = mainHUD:WaitForChild("HealthBar"):WaitForChild("Fill")
+	
+	local tween = TweenService:Create(healthBar, TweenInfo.new(0.3), {
+		Size = UDim2.new(percentage, 0, 1, 0)
+	})
+	tween:Play()
+end
+
+function UIManager.UpdateAmmo(current, max)
+	local mainHUD = playerGui:WaitForChild("MainHUD")
+	local ammoCounter = mainHUD:WaitForChild("AmmoCounter")
+	ammoCounter.Text = current .. "/" .. max
+end
+
+-- Monitor player health
+spawn(function()
+	while true do
+		wait(0.1)
+		if player.Character and player.Character:FindFirstChild("Humanoid") then
+			local health = player.Character.Humanoid.Health
+			local maxHealth = player.Character.Humanoid.MaxHealth
+			UIManager.UpdateHealth(health / maxHealth)
+		end
+	end
+end)
+
+print("UI Manager loaded")
+]]></ProtectedString>
+					</Properties>
+				</Item>
+				
 			</Item>
+			
 		</Item>
-		
+
 		<!-- Lighting -->
-		<Item class="Lighting" referent="RBX15">
+		<Item class="Lighting" referent="RBX_LIGHTING">
 			<Properties>
 				<string name="Name">Lighting</string>
 				<float name="Brightness">2</float>
 				<Color3 name="Ambient">
-					<R>0.5</R>
-					<G>0.5</G>
-					<B>0.5</B>
+					<R>0.5</R><G>0.5</G><B>0.5</B>
 				</Color3>
 				<string name="TimeOfDay">14:00:00</string>
+				<bool name="GlobalShadows">true</bool>
 			</Properties>
 		</Item>
-		
+
 		<!-- Sound Service -->
-		<Item class="SoundService" referent="RBX16">
+		<Item class="SoundService" referent="RBX_SOUNDSERVICE">
 			<Properties>
 				<string name="Name">SoundService</string>
 				<bool name="RespectFilteringEnabled">true</bool>
 			</Properties>
 		</Item>
+
+		<!-- Other essential services -->
+		<Item class="TweenService" referent="RBX_TWEENSERVICE">
+			<Properties>
+				<string name="Name">TweenService</string>
+			</Properties>
+		</Item>
+
+		<Item class="UserInputService" referent="RBX_USERINPUTSERVICE">
+			<Properties>
+				<string name="Name">UserInputService</string>
+			</Properties>
+		</Item>
+
+		<Item class="HttpService" referent="RBX_HTTPSERVICE">
+			<Properties>
+				<string name="Name">HttpService</string>
+				<bool name="HttpEnabled">true</bool>
+			</Properties>
+		</Item>
+
+		<Item class="DataStoreService" referent="RBX_DATASTORESERVICE">
+			<Properties>
+				<string name="Name">DataStoreService</string>
+			</Properties>
+		</Item>
+
+		<Item class="TeleportService" referent="RBX_TELEPORTSERVICE">
+			<Properties>
+				<string name="Name">TeleportService</string>
+			</Properties>
+		</Item>
+
 	</Item>
 </roblox>

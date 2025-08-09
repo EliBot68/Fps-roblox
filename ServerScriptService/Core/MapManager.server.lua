@@ -30,7 +30,11 @@ function MapManager.Initialize()
 	-- Set up map loading events
 	MapManager.SetupEvents()
 	
+	-- Load village spawn as default for all players
+	MapManager.LoadVillageSpawn()
+	
 	Logging.Info("MapManager initialized with " .. #mapRegistry .. " competitive maps")
+	Logging.Info("Village spawn loaded as default player spawn")
 end
 
 function MapManager.ScanAvailableMaps()
@@ -453,5 +457,167 @@ end
 
 -- Initialize the map manager
 MapManager.Initialize()
+
+function MapManager.LoadVillageSpawn()
+	-- Load the village spawn as the default spawn for all players
+	local villageSpawnPath = "C:\\Users\\Administrator\\Desktop\\fps roblox\\maps\\Starter Map\\AllPlayerSpawn"
+	
+	-- Clear existing spawns
+	for _, obj in ipairs(Workspace:GetChildren()) do
+		if obj:IsA("SpawnLocation") then
+			obj:Destroy()
+		end
+	end
+	
+	-- Create village spawn locations based on our village design
+	local spawnPositions = {
+		Vector3.new(-20, 5, -20), -- Northwest
+		Vector3.new(20, 5, -20),  -- Northeast  
+		Vector3.new(-20, 5, 20),  -- Southwest
+		Vector3.new(20, 5, 20),   -- Southeast
+		Vector3.new(0, 5, -30),   -- North center
+		Vector3.new(0, 5, 30),    -- South center
+		Vector3.new(-30, 5, 0),   -- West center
+		Vector3.new(30, 5, 0),    -- East center
+	}
+	
+	-- Create spawn locations for village
+	for i, position in ipairs(spawnPositions) do
+		local spawn = Instance.new("SpawnLocation")
+		spawn.Name = "VillageSpawn" .. i
+		spawn.Size = Vector3.new(4, 1, 4)
+		spawn.CFrame = CFrame.new(position)
+		spawn.Color3 = Color3.new(0.2, 0.8, 0.2) -- Green
+		spawn.Material = Enum.Material.Grass
+		spawn.Transparency = 0.3
+		spawn.Anchored = true
+		spawn.CanCollide = true
+		spawn.Enabled = true
+		spawn.TeamColor = BrickColor.new("Bright green")
+		spawn.Parent = Workspace
+	end
+	
+	-- Create the village platform and structures
+	MapManager.CreateVillageStructure()
+	
+	Logging.Info("Village spawn loaded with " .. #spawnPositions .. " spawn points")
+end
+
+function MapManager.CreateVillageStructure()
+	-- Create the main village platform
+	local platform = Instance.new("Part")
+	platform.Name = "VillageMainPlatform"
+	platform.Size = Vector3.new(120, 4, 120)
+	platform.CFrame = CFrame.new(0, 0, 0)
+	platform.Color3 = Color3.new(0.647, 0.647, 0.647)
+	platform.Material = Enum.Material.Concrete
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Parent = Workspace
+	
+	-- Create central fountain base
+	local fountainBase = Instance.new("Part")
+	fountainBase.Name = "VillageFountainBase"
+	fountainBase.Size = Vector3.new(12, 2, 12)
+	fountainBase.CFrame = CFrame.new(0, 4, 0)
+	fountainBase.Color3 = Color3.new(0.5, 0.5, 0.5)
+	fountainBase.Material = Enum.Material.Brick
+	fountainBase.Shape = Enum.PartType.Cylinder
+	fountainBase.Anchored = true
+	fountainBase.CanCollide = true
+	fountainBase.Parent = Workspace
+	
+	-- Create fountain center
+	local fountainCenter = Instance.new("Part")
+	fountainCenter.Name = "VillageFountainCenter"
+	fountainCenter.Size = Vector3.new(6, 4, 6)
+	fountainCenter.CFrame = CFrame.new(0, 7, 0)
+	fountainCenter.Color3 = Color3.new(0.4, 0.4, 0.4)
+	fountainCenter.Material = Enum.Material.Brick
+	fountainCenter.Shape = Enum.PartType.Cylinder
+	fountainCenter.Anchored = true
+	fountainCenter.CanCollide = true
+	fountainCenter.Parent = Workspace
+	
+	-- Create houses for each direction (simplified)
+	MapManager.CreateVillageHouse("North", Vector3.new(0, 8, -40), Color3.new(0.9, 0.85, 0.7))
+	MapManager.CreateVillageHouse("East", Vector3.new(40, 8, 0), Color3.new(0.85, 0.9, 0.7))
+	MapManager.CreateVillageHouse("South", Vector3.new(0, 8, 40), Color3.new(0.7, 0.85, 0.9))
+	MapManager.CreateVillageHouse("West", Vector3.new(-40, 8, 0), Color3.new(0.9, 0.7, 0.85))
+	
+	-- Add lighting
+	MapManager.CreateVillageLighting()
+end
+
+function MapManager.CreateVillageHouse(direction, position, color)
+	local house = Instance.new("Model")
+	house.Name = "VillageHouse" .. direction
+	house.Parent = Workspace
+	
+	-- House base
+	local base = Instance.new("Part")
+	base.Name = "Base"
+	base.Size = Vector3.new(18, 1, 20)
+	base.CFrame = CFrame.new(position.X, 2.5, position.Z)
+	base.Color3 = Color3.new(0.8, 0.8, 0.8)
+	base.Material = Enum.Material.Concrete
+	base.Anchored = true
+	base.CanCollide = true
+	base.Parent = house
+	
+	-- House walls (simplified - just one main wall)
+	local wall = Instance.new("Part")
+	wall.Name = "MainWall"
+	wall.Size = Vector3.new(18, 10, 1)
+	wall.CFrame = CFrame.new(position.X, position.Y, position.Z + 10)
+	wall.Color3 = color
+	wall.Material = Enum.Material.Wood
+	wall.Anchored = true
+	wall.CanCollide = true
+	wall.Parent = house
+	
+	-- Roof
+	local roof = Instance.new("Part")
+	roof.Name = "Roof"
+	roof.Size = Vector3.new(22, 2, 24)
+	roof.CFrame = CFrame.new(position.X, 15, position.Z)
+	roof.Color3 = Color3.new(0.6, 0.3, 0.2)
+	roof.Material = Enum.Material.Wood
+	roof.Anchored = true
+	roof.CanCollide = true
+	roof.Parent = house
+end
+
+function MapManager.CreateVillageLighting()
+	-- Add street lamps
+	local lampPositions = {
+		Vector3.new(-15, 8, 0),
+		Vector3.new(15, 8, 0),
+		Vector3.new(0, 8, -15),
+		Vector3.new(0, 8, 15)
+	}
+	
+	for i, pos in ipairs(lampPositions) do
+		local lamp = Instance.new("Part")
+		lamp.Name = "StreetLamp" .. i
+		lamp.Size = Vector3.new(0.5, 12, 0.5)
+		lamp.CFrame = CFrame.new(pos)
+		lamp.Color3 = Color3.new(0.3, 0.3, 0.3)
+		lamp.Material = Enum.Material.Metal
+		lamp.Shape = Enum.PartType.Cylinder
+		lamp.Anchored = true
+		lamp.CanCollide = true
+		lamp.Parent = Workspace
+		
+		-- Add light
+		local light = Instance.new("PointLight")
+		light.Name = "LampLight"
+		light.Brightness = 2
+		light.Color = Color3.new(1, 0.9, 0.7)
+		light.Range = 25
+		light.Enabled = true
+		light.Parent = lamp
+	end
+end
 
 return MapManager
