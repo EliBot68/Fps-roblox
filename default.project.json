@@ -30,7 +30,12 @@
     },
 
     "StarterPlayer": {
-      "$path": "StarterPlayer"
+      "StarterPlayerScripts": {
+        "$path": "StarterPlayer/StarterPlayerScripts"
+      },
+      "StarterCharacterScripts": {
+        "$path": "StarterPlayer/StarterCharacterScripts"
+      }
     },
 
     "StarterPack": {
