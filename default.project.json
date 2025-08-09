@@ -37,10 +37,6 @@
       "$className": "StarterPack"
     },
 
-    "Teams": {
-      "$className": "Teams"
-    },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
