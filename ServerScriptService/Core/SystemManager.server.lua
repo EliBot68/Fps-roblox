@@ -167,7 +167,8 @@ function SystemManager.UpdatePerformanceMetrics()
 	local stats = game:GetService("Stats")
 	
 	performanceMetrics.fps = math.floor(1 / RunService.Heartbeat:Wait())
-	performanceMetrics.memory = stats:GetTotalMemoryUsageMb()
+	local success, memoryMB = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+	performanceMetrics.memory = success and memoryMB or 0
 	performanceMetrics.playerCount = #Players:GetPlayers()
 	performanceMetrics.lastUpdate = os.time()
 	

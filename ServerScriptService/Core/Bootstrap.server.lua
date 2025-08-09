@@ -199,7 +199,7 @@ spawn(function()
 		wait(60) -- Check every minute
 		
 		local stats = game:GetService("Stats")
-		local memory = stats:GetTotalMemoryUsageMb()
+		local memory = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end) and stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) or 0
 		local playerCount = #Players:GetPlayers()
 		
 		if memory > GameConfig.Performance.MaxServerMemoryMB then

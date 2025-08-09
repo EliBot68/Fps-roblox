@@ -21,7 +21,8 @@ local function setupServerOptimizations()
 	game:GetService("RunService").Heartbeat:Connect(function()
 		-- Adaptive garbage collection based on memory usage
 		local stats = game:GetService("Stats")
-		local memory = stats:GetTotalMemoryUsageMb()
+		local success, memory = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+		memory = success and memory or 0
 		
 		if memory > 1500 then -- High memory usage
 			collectgarbage("collect")
@@ -83,7 +84,8 @@ local function setupMemoryOptimizations()
 			wait(60) -- Check every minute
 			
 			local stats = game:GetService("Stats")
-			local memory = stats:GetTotalMemoryUsageMb()
+			local success, memory = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+			memory = success and memory or 0
 			
 			if memory > 2000 then
 				-- Critical memory usage - emergency optimization
@@ -115,8 +117,9 @@ local function setupPerformanceMonitoring()
 		
 		-- Generate performance report every 5 minutes
 		if now - lastReport >= 300 then
+			local success, memoryMB = pcall(function() return game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
 			local report = {
-				memory = game:GetService("Stats"):GetTotalMemoryUsageMb(),
+				memory = success and memoryMB or 0,
 				playerCount = #Players:GetPlayers(),
 				batchStats = BatchProcessor.GetStats(),
 				performanceMetrics = PerformanceOptimizer.GetPerformanceReport()

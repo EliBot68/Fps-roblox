@@ -372,7 +372,8 @@ end
 -- Get current memory usage
 function BatchProcessor.GetMemoryUsage()
 	local stats = game:GetService("Stats")
-	return stats:GetTotalMemoryUsageMb()
+	local success, memoryMB = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+	return success and memoryMB or 0
 end
 
 -- Emergency flush all queues

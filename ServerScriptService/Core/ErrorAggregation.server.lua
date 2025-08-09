@@ -62,7 +62,8 @@ function ErrorAggregation.LogError(errorType, message, stackTrace, context)
 	-- Add server context
 	errorData.context.playerCount = #Players:GetPlayers()
 	errorData.context.serverUptime = timestamp - (game:GetService("Stats").ElapsedTime or 0)
-	errorData.context.memoryUsage = game:GetService("Stats").GetTotalMemoryUsageMb()
+	local success, memoryMB = pcall(function() return game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+	errorData.context.memoryUsage = success and memoryMB or 0
 	
 	-- Store error
 	table.insert(errorHistory, errorData)
@@ -153,7 +154,8 @@ end
 
 function ErrorAggregation.CheckPerformanceAlerts()
 	local currentFPS = 1 / RunService.Heartbeat:Wait()
-	local memoryUsage = game:GetService("Stats").GetTotalMemoryUsageMb()
+	local success, memoryUsage = pcall(function() return game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+	memoryUsage = success and memoryUsage or 0
 	
 	-- Track performance metrics
 	if not ErrorAggregation.performanceHistory then

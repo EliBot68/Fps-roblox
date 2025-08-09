@@ -172,7 +172,12 @@ end
 local function updatePerformanceMetrics()
 	metrics.performance.serverFPS = 1 / RunService.Heartbeat:Wait()
 	metrics.performance.playerCount = #Players:GetPlayers()
-	metrics.performance.memoryUsage = game:GetService("Stats").GetTotalMemoryUsageMb()
+	
+	-- Get memory usage safely
+	local success, memoryMB = pcall(function()
+		return game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal)
+	end)
+	metrics.performance.memoryUsage = success and memoryMB or 0
 	
 	-- Network stats (approximated)
 	local stats = game:GetService("NetworkServer")

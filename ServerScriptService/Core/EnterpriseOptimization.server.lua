@@ -143,7 +143,8 @@ function EnterpriseOptimization.SetupMemoryManagement()
 	task.spawn(function()
 		while true do
 			local stats = game:GetService("Stats")
-			local memUsage = stats:GetTotalMemoryUsageMb() * 1024 * 1024
+			local success, memUsageMB = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+			local memUsage = success and (memUsageMB * 1024 * 1024) or 0
 			performanceMetrics.memoryUsage = memUsage
 			
 			if memUsage > MAX_MEMORY_USAGE then

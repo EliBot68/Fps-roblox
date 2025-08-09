@@ -175,7 +175,8 @@ function PerformanceOptimizer.StartMonitoring()
 			while true do
 				wait(5)
 				local stats = game:GetService("Stats")
-				performanceMetrics.memoryUsage = stats:GetTotalMemoryUsageMb()
+				local success, memoryMB = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+				performanceMetrics.memoryUsage = success and memoryMB or 0
 				
 				if performanceMetrics.memoryManagementEnabled then
 					PerformanceOptimizer.ManageMemory()

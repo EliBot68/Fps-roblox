@@ -346,7 +346,7 @@ function SessionMigration.MonitorServerHealth()
 	-- Monitor various health metrics
 	local metrics = {
 		fps = 1 / game:GetService("RunService").Heartbeat:Wait(),
-		memory = game:GetService("Stats").GetTotalMemoryUsageMb(),
+		memory = pcall(function() return game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end) and game:GetService("Stats"):GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) or 0,
 		playerCount = #Players:GetPlayers(),
 		uptime = os.time() - serverStartTime
 	}

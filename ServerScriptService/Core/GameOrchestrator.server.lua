@@ -465,7 +465,8 @@ end
 
 function GameOrchestrator.MonitorServerPerformance()
 	local stats = game:GetService("Stats")
-	local memory = stats:GetTotalMemoryUsageMb()
+	local success, memory = pcall(function() return stats:GetTotalMemoryUsageMb(Enum.MemoryInfoType.Internal) end)
+	memory = success and memory or 0
 	local playerCount = #Players:GetPlayers()
 	
 	-- Log performance metrics
