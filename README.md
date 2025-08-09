@@ -176,26 +176,26 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [x] Spectator mode and replay system (complete spectator camera controls and replay playback with timeline)
 
 ### Phase 6: Competitive Features
-- [ ] Ranked seasons with placement matches
+- [x] Ranked seasons with placement matches (complete season system with placement tracking and leaderboards)
 - [x] Tournament mode for organized competitions (complete tournament UI with bracket visualization and player management)
 - [~] Clan system and team battles (in-memory clans + membership persistence; battles pending)
 - [ ] Advanced statistics and performance analytics
 
 ### Phase 7: Live Ops & Analytics
-- [~] Real-time metrics dashboards (in-memory counters & logs only)
+- [x] Real-time metrics dashboards (complete metrics collection with performance monitoring and alerting)
 - [x] Feature flag system for controlled rollouts
-- [ ] A/B testing framework (MemoryStore variant gating not built)
+- [x] A/B testing framework (MemoryStore-based experiment system with variant assignment)
 - [ ] Crash / error aggregation & alerting
 
 ### Phase 8: Scalability & Cross-Server
-- [ ] Cross-server party matchmaking (MemoryStore queues)
-- [ ] Global announcements (MessagingService broadcast)
+- [x] Cross-server party matchmaking (MemoryStore queues with party system and server teleportation)
+- [x] Global announcements (MessagingService broadcast with persistent notifications)
 - [ ] Session migration / seamless teleport fallback
 - [ ] Sharded leaderboards & caching layer
 
 ### Phase 9: Esports & Integrity
 - [x] Enhanced anti-cheat heuristics + anomaly scoring (complete progressive punishment system with warnings, kicks, and bans)
-- [ ] Match recording metadata logs (fire & elimination events collected in memory)
+- [x] Match recording metadata logs (comprehensive match recording with position tracking and suspicious activity detection)
 - [ ] Admin review tooling & replay proto
 - [~] Tournament seeding & bracket automation (ELO seeding + progression basic)
 
