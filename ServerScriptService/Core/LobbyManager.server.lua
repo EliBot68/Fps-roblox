@@ -22,7 +22,7 @@ local LobbyManager = {}
 
 -- Configuration constants
 local TOUCHPAD_CONFIG = {
-	position = Vector3.new(25, 0.5, 0),
+	position = Vector3.new(25, 5, 0), -- Raised from 3 to 5 for better visibility
 	baseSize = Vector3.new(14, 1, 14),
 	activationSize = Vector3.new(10, 0.8, 10),
 	effectHeight = 15,
