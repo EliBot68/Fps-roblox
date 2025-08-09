@@ -4,11 +4,25 @@
     "$className": "DataModel",
 
     "ReplicatedStorage": {
-      "$path": "ReplicatedStorage"
+      "$path": "ReplicatedStorage",
+      "SharedBasic": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ReplicatedFirst": {
+      "$path": "ReplicatedFirst"
     },
 
     "ServerScriptService": {
-      "$path": "ServerScriptService"
+      "$path": "ServerScriptService",
+      "ServerBasic": {
+        "$path": "src/server"
+      }
+    },
+
+    "ServerStorage": {
+      "$path": "ServerStorage"
     },
 
     "StarterGui": {
@@ -17,6 +31,14 @@
 
     "StarterPlayer": {
       "$path": "StarterPlayer"
+    },
+
+    "StarterPack": {
+      "$className": "StarterPack"
+    },
+
+    "Teams": {
+      "$className": "Teams"
     },
 
     "Workspace": {
