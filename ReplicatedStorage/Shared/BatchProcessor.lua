@@ -441,4 +441,10 @@ function BatchProcessor.RecordAnalyticsBatched(eventType, data, priority)
 	}, priority or "low")
 end
 
+-- Set maximum batch size dynamically
+function BatchProcessor.SetMaxBatchSize(size)
+	BATCH_CONFIG.maxBatchSize = math.max(1, size)
+	print("[BatchProcessor] Set max batch size to " .. size)
+end
+
 return BatchProcessor

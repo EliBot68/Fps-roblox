@@ -1,5 +1,5 @@
 -- ClientManager.client.lua
--- Enterprise client-side system coordinator
+-- Enterprise client-side system coordinator with performance optimization
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +16,12 @@ local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameCo
 local Logging = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Logging")
 local WeaponConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WeaponConfig")
 local Utilities = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utilities")
+local PerformanceOptimizer = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PerformanceOptimizer")
+local BatchProcessor = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BatchProcessor")
+
+-- Initialize performance systems
+PerformanceOptimizer.Initialize()
+BatchProcessor.Initialize()
 
 -- Client systems
 local ClientManager = {}
@@ -666,7 +672,18 @@ end
 -- Initialize when script loads
 ClientManager.Initialize()
 
--- Handle player leaving
+-- Initialize quality of life enhancements
+spawn(function()
+	local OptimizedInputSystem = require(script.Parent:WaitForChild("OptimizedInputSystem"))
+	local QualityOfLifeEnhancements = require(script.Parent:WaitForChild("QualityOfLifeEnhancements"))
+	
+	OptimizedInputSystem.Initialize()
+	QualityOfLifeEnhancements.Initialize()
+	
+	print("[ClientManager] ✓ All optimization systems initialized")
+end)
+
+-- Handle player leaving with cleanup
 game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
 	if leavingPlayer == player then
 		ClientManager.Cleanup()

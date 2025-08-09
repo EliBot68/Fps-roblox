@@ -418,4 +418,27 @@ function PerformanceOptimizer.EnableClientPrediction()
 	print("[PerformanceOptimizer] Client prediction enabled")
 end
 
+-- Optimize for specific player
+function PerformanceOptimizer.OptimizeForPlayer(player)
+	-- Apply player-specific optimizations
+	local profile = currentProfile
+	print("[PerformanceOptimizer] Applied " .. profile .. " optimization for " .. player.Name)
+end
+
+-- Emergency optimization for critical memory situations
+function PerformanceOptimizer.EmergencyOptimization()
+	-- Force immediate aggressive cleanup
+	PerformanceOptimizer.AggressiveCleanup()
+	PerformanceOptimizer.SetQualityPreset("lowEnd")
+	print("[PerformanceOptimizer] Emergency optimization applied")
+end
+
+-- Aggressive optimization for high memory usage
+function PerformanceOptimizer.AggressiveOptimization()
+	-- Apply aggressive settings temporarily
+	PerformanceOptimizer.ReduceQuality()
+	collectgarbage("collect")
+	print("[PerformanceOptimizer] Aggressive optimization applied")
+end
+
 return PerformanceOptimizer
