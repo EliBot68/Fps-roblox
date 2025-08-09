@@ -18,7 +18,7 @@ local requiredEvents = {
 	MatchmakingEvents = { "RequestMatch", "LeaveQueue", "MatchStart", "MatchEnd" },
 	CombatEvents = { "FireWeapon", "ReportHit", "RequestReload", "SwitchWeapon" },
 	ShopEvents = { "PurchaseItem", "EquipCosmetic" },
-	UIEvents = { "UpdateStats", "ShowLeaderboard", "UpdateCurrency", "GameStateUpdate" },
+	UIEvents = { "UpdateStats", "ShowLeaderboard", "UpdateCurrency", "GameStateUpdate", "AntiCheatWarning" },
 }
 
 for _,domain in ipairs(domains) do
@@ -56,28 +56,32 @@ local initializationOrder = {
 	"ErrorAggregation",   -- Error tracking and recovery
 	
 	-- Security and monitoring
-	"AntiCheat",        -- Cheat detection
-	"AdminReviewTool",  -- Admin tools
-	"FeatureFlags",     -- Feature toggles
+	"AntiCheat",          -- Cheat detection
+	"AdminReviewTool",    -- Admin tools
+	"FeatureFlags",       -- Feature toggles
+	"RateLimiter",        -- Request limiting
 	
 	-- Game systems
-	"MapManager",       -- Map loading and village spawn
-	"RankManager",      -- ELO and ranking
-	"Combat",           -- Weapon and damage systems
-	"KillStreakManager", -- Kill streak bonuses
-	"Matchmaker",       -- Player matching
+	"MapManager",         -- Map loading and village spawn
+	"RankManager",        -- ELO and ranking
+	"Combat",             -- Weapon and damage systems
+	"KillStreakManager",  -- Kill streak bonuses
+	"Matchmaker",         -- Player matching
+	"CompetitiveMatchmaker", -- Ranked matchmaking
+	"CrossServerMatchmaking", -- Multi-server matching
 	
 	-- Economy and progression
-	"CurrencyManager",  -- Virtual currency
-	"ShopManager",      -- Item purchases
-	"DailyChallenges",  -- Daily objectives
-	"RankRewards",      -- Rank-based rewards
+	"CurrencyManager",    -- Virtual currency
+	"ShopManager",        -- Item purchases
+	"DailyChallenges",    -- Daily objectives
+	"RankRewards",        -- Rank-based rewards
 	
 	-- Social and competitive
-	"Clan",             -- Clan system
-	"ClanBattles",      -- Clan vs clan
-	"RankedSeasons",    -- Seasonal competition
-	"Tournament",       -- Tournament system
+	"Clan",               -- Clan system
+	"ClanBattles",        -- Clan vs clan
+	"RankedSeasons",      -- Seasonal competition
+	"Tournament",         -- Tournament system
+	"TournamentPersistence", -- Tournament data
 	
 	-- Analytics and optimization
 	"StatisticsAnalytics", -- Player analytics
@@ -85,7 +89,10 @@ local initializationOrder = {
 	"ABTesting",           -- A/B experiments
 	"SessionMigration",    -- Server migration
 	"ReplayRecorder",      -- Match recording
+	"MatchRecording",      -- Match history
 	"Spectator",           -- Spectator system
+	"GlobalAnnouncements", -- Server messaging
+	"ShardedLeaderboards", -- Distributed rankings
 }
 
 local initializedSystems = {}
