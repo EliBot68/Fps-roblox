@@ -1,7 +1,56 @@
--- WeaponConfig.lua
--- Enterprise weapon configuration with advanced balance metrics
+--[[
+	WeaponConfig.lua
+	Enterprise weapon configuration with advanced balance metrics and type safety
+	
+	Provides comprehensive weapon statistics with Luau type annotations
+]]
 
-local WeaponConfig = {
+-- Type definitions for weapon system
+export type WeaponRecoil = {
+	Vertical: number,
+	Horizontal: number,
+	Recovery: number
+}
+
+export type WeaponMobility = {
+	WalkSpeed: number,
+	AdsSpeed: number,
+	SwapSpeed: number
+}
+
+export type WeaponEffectiveness = {
+	Close: number,
+	Medium: number,
+	Long: number
+}
+
+export type WeaponData = {
+	Id: string,
+	Name: string,
+	Damage: number,
+	HeadshotMultiplier: number,
+	FireRate: number,
+	MagazineSize: number,
+	ReloadTime: number,
+	Range: number,
+	FalloffStart: number,
+	FalloffEnd: number,
+	Spread: number,
+	Recoil: WeaponRecoil,
+	Mobility: WeaponMobility,
+	Class: string,
+	Cost: number,
+	Tier: number,
+	UnlockLevel: number,
+	Penetration: number,
+	Effectiveness: WeaponEffectiveness
+}
+
+export type WeaponRegistry = {
+	[string]: WeaponData
+}
+
+local WeaponConfig: WeaponRegistry = {
 	AssaultRifle = {
 		Id = "AssaultRifle",
 		Name = "M4A1 Carbine",
@@ -220,64 +269,156 @@ WeaponConfig.Tiers = {
 	[3] = { weapons = { "Sniper", "BurstRifle" }, name = "Elite" }
 }
 
+-- Type-safe utility functions for weapon management
+
+-- Get weapon data with type safety
+function WeaponConfig.GetWeapon(weaponId: string): WeaponData?
+	local weapon = WeaponConfig[weaponId]
+	if weapon and type(weapon) == "table" and weapon.Id then
+		return weapon :: WeaponData
+	end
+	return nil
+end
+
+-- Get all weapons of a specific class
+function WeaponConfig.GetWeaponsByClass(weaponClass: string): {WeaponData}
+	local weapons: {WeaponData} = {}
+	
+	for _, weapon in pairs(WeaponConfig) do
+		if type(weapon) == "table" and weapon.Class == weaponClass then
+			table.insert(weapons, weapon :: WeaponData)
+		end
+	end
+	
+	return weapons
+end
+
+-- Calculate damage at specific range with type safety
+function WeaponConfig.CalculateDamageAtRange(weaponId: string, range: number): number?
+	local weapon = WeaponConfig.GetWeapon(weaponId)
+	if not weapon then return nil end
+	
+	local baseDamage = weapon.Damage
+	
+	if range <= weapon.FalloffStart then
+		return baseDamage
+	elseif range >= weapon.FalloffEnd then
+		return baseDamage * 0.5 -- 50% damage at max range
+	else
+		-- Linear interpolation between falloff points
+		local falloffFactor = (range - weapon.FalloffStart) / (weapon.FalloffEnd - weapon.FalloffStart)
+		return baseDamage * (1.0 - (falloffFactor * 0.5))
+	end
+end
+
+-- Type-safe weapon validation with comprehensive metrics
+function WeaponConfig.ValidateWeapon(weapon: WeaponData): {valid: boolean, issues: {string}}
+	local issues: {string} = {}
+	
+	-- Required field validation
+	if not weapon.Id or weapon.Id == "" then
+		table.insert(issues, "Missing or empty weapon ID")
+	end
+	
+	if not weapon.Name or weapon.Name == "" then
+		table.insert(issues, "Missing or empty weapon name")
+	end
+	
+	-- Numeric validation
+	if weapon.Damage <= 0 then
+		table.insert(issues, "Damage must be positive")
+	end
+	
+	if weapon.FireRate <= 0 then
+		table.insert(issues, "Fire rate must be positive")
+	end
+	
+	if weapon.MagazineSize <= 0 then
+		table.insert(issues, "Magazine size must be positive")
+	end
+	
+	-- Balance validation
+	local ttk = 100 / (weapon.Damage * weapon.FireRate)
+	if ttk < 0.3 then
+		table.insert(issues, "TTK too low (< 0.3s): " .. string.format("%.2f", ttk))
+	elseif ttk > 3.0 then
+		table.insert(issues, "TTK too high (> 3.0s): " .. string.format("%.2f", ttk))
+	end
+	
+	return {
+		valid = #issues == 0,
+		issues = issues
+	}
+end
+
 -- Balance validation for enterprise competitive play
-function WeaponConfig.ValidateBalance()
-	local warnings = {}
+function WeaponConfig.ValidateBalance(): {totalWeapons: number, validWeapons: number, issues: {{weaponId: string, problems: {string}}}}
+	local issues: {{weaponId: string, problems: {string}}} = {}
+	local validCount = 0
+	local totalCount = 0
 	
 	for weaponId, config in pairs(WeaponConfig) do
 		if type(config) == "table" and config.Id then
-			-- TTK (Time To Kill) validation
-			local damage = config.Damage * (config.PelletCount or 1)
-			local ttk = 100 / (damage * config.FireRate) -- Seconds to kill 100 HP
+			totalCount = totalCount + 1
+			local validation = WeaponConfig.ValidateWeapon(config :: WeaponData)
 			
-			if ttk < 0.3 then
-				table.insert(warnings, weaponId .. " has extremely low TTK: " .. ttk .. "s")
-			elseif ttk > 3.0 then
-				table.insert(warnings, weaponId .. " has very high TTK: " .. ttk .. "s")
-			end
-			
-			-- Range validation
-			if config.Range > 1000 then
-				table.insert(warnings, weaponId .. " has excessive range: " .. config.Range)
-			end
-			
-			-- Fire rate sanity check
-			if config.FireRate > 20 then
-				table.insert(warnings, weaponId .. " has extreme fire rate: " .. config.FireRate)
+			if validation.valid then
+				validCount = validCount + 1
+			else
+				table.insert(issues, {
+					weaponId = weaponId,
+					problems = validation.issues
+				})
 			end
 		end
 	end
 	
-	return warnings
+	return {
+		totalWeapons = totalCount,
+		validWeapons = validCount,
+		issues = issues
+	}
 end
 
--- Get weapon effectiveness at range
-function WeaponConfig.GetEffectivenessAtRange(weaponId, distance)
-	local weapon = WeaponConfig[weaponId]
-	if not weapon then return 1 end
+-- Get weapon statistics for balancing
+function WeaponConfig.GetBalanceStats(): {
+	averageTTK: number,
+	averageDPS: number,
+	weaponsByTier: {[number]: number},
+	classCoverage: {[string]: number}
+}
+	local totalTTK = 0
+	local totalDPS = 0
+	local weaponCount = 0
+	local tierCounts: {[number]: number} = {}
+	local classCounts: {[string]: number} = {}
 	
-	if distance <= weapon.FalloffStart then
-		return 1.0
-	elseif distance >= weapon.FalloffEnd then
-		return 0.5
-	else
-		-- Linear falloff between start and end
-		local falloffProgress = (distance - weapon.FalloffStart) / (weapon.FalloffEnd - weapon.FalloffStart)
-		return 1.0 - (falloffProgress * 0.5)
+	for _, config in pairs(WeaponConfig) do
+		if type(config) == "table" and config.Id then
+			local weapon = config :: WeaponData
+			weaponCount = weaponCount + 1
+			
+			-- Calculate TTK and DPS
+			local ttk = 100 / (weapon.Damage * weapon.FireRate)
+			local dps = weapon.Damage * weapon.FireRate
+			
+			totalTTK = totalTTK + ttk
+			totalDPS = totalDPS + dps
+			
+			-- Count by tier
+			tierCounts[weapon.Tier] = (tierCounts[weapon.Tier] or 0) + 1
+			
+			-- Count by class
+			classCounts[weapon.Class] = (classCounts[weapon.Class] or 0) + 1
+		end
 	end
-end
-
--- Calculate damage with all modifiers
-function WeaponConfig.CalculateDamage(weaponId, distance, isHeadshot, penetrationFactor)
-	local weapon = WeaponConfig[weaponId]
-	if not weapon then return 0 end
 	
-	local baseDamage = weapon.Damage * (weapon.PelletCount or 1)
-	local rangeFactor = WeaponConfig.GetEffectivenessAtRange(weaponId, distance)
-	local headshotFactor = isHeadshot and weapon.HeadshotMultiplier or 1.0
-	local penetrationFactor = penetrationFactor or 1.0
-	
-	return math.floor(baseDamage * rangeFactor * headshotFactor * penetrationFactor)
+	return {
+		averageTTK = weaponCount > 0 and (totalTTK / weaponCount) or 0,
+		averageDPS = weaponCount > 0 and (totalDPS / weaponCount) or 0,
+		weaponsByTier = tierCounts,
+		classCoverage = classCounts
+	}
 end
 
 return WeaponConfig
