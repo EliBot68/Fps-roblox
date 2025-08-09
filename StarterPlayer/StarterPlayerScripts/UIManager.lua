@@ -22,6 +22,10 @@ function UIManager.UpdateStats(stats)
 	-- TODO: apply to ScreenGui elements
 end
 
+function UIManager.SetCurrency(amount)
+	print("[UI] Currency:" , amount)
+end
+
 UpdateStatsRemote.OnClientEvent:Connect(function(data)
 	UIManager.UpdateStats(data)
 end)

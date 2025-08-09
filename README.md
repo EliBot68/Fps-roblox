@@ -143,46 +143,48 @@ Player stats, rank, owned cosmetics, and daily challenge progress are saved betw
 
 ## Development Phases
 
+Legend: [x] complete, [~] partial / in progress, [ ] not started
+
 ### Phase 1: MVP (Minimum Viable Product)
 - [x] Basic matchmaker for 2–6 player matches
 - [x] Server-authoritative assault rifle with realistic mechanics
-- [x] Simple arena map with balanced spawn points
-- [x] Basic HUD showing health, ammo, and match timer
+- [ ] Simple arena map with balanced spawn points (placeholder only, not built)
+- [~] Basic HUD showing health, ammo, and match timer (health/ammo stats via Remote; GUI + timer pending)
 
 ### Phase 2: Core Systems
-- [ ] ELO ranking system with skill-based matchmaking
-- [ ] Data persistence for player stats and progress
-- [ ] Kill/death tracking and match statistics
-- [ ] Basic anti-cheat implementation
+- [~] ELO ranking system with skill-based matchmaking (ELO + tiers done; matchmaking still simple queue)
+- [x] Data persistence for player stats and progress (schema v2, retries)
+- [x] Kill/death tracking and match statistics (basic K/D; richer per-match stats pending)
+- [x] Basic anti-cheat implementation (plus extended heuristics)
 
 ### Phase 3: Weapon Variety
-- [ ] Add SMG with high fire rate, low damage
-- [ ] Add sniper rifle with high damage, slow fire rate
+- [x] Add SMG with high fire rate, low damage
+- [x] Add sniper rifle with high damage, slow fire rate
 - [ ] Add pistol as secondary weapon
-- [ ] Implement weapon switching and dual-wielding
+- [~] Implement weapon switching and dual-wielding (switching done; dual-wield not implemented)
 
 ### Phase 4: Economy & Progression
-- [ ] Currency system (earned through matches and challenges)
-- [ ] Cosmetics store with weapon skins and player accessories
-- [ ] Daily challenges with rotating objectives
-- [ ] Rank-based rewards and unlocks
+- [x] Currency system (earn on kills, wins, streaks)
+- [~] Cosmetics store with weapon skins and player accessories (server purchase logic; UI + cosmetic visuals pending)
+- [x] Daily challenges with rotating objectives (kill & win hooks active)
+- [ ] Rank-based rewards and unlocks (no gating logic yet)
 
 ### Phase 5: Content Expansion
 - [ ] Additional maps with unique layouts and themes
-- [ ] Kill streak rewards and power-ups
+- [~] Kill streak rewards and power-ups (streak currency rewards present; power-up effects not implemented)
 - [ ] Seasonal events and limited-time cosmetics
-- [ ] Spectator mode and replay system
+- [~] Spectator mode and replay system (basic spectator scaffold; no replay system)
 
 ### Phase 6: Competitive Features
 - [ ] Ranked seasons with placement matches
-- [ ] Tournament mode for organized competitions
-- [ ] Clan system and team battles
+- [~] Tournament mode for organized competitions (single-elim bracket scaffold; no persistence/UI)
+- [~] Clan system and team battles (in-memory clans only; no battles/persistence)
 - [ ] Advanced statistics and performance analytics
 
 ### Phase 7: Live Ops & Analytics
-- [ ] Real-time metrics dashboards
-- [ ] Feature flag system for controlled rollouts
-- [ ] A/B testing framework (variant gating via MemoryStore)
+- [~] Real-time metrics dashboards (in-memory counters & logs only)
+- [x] Feature flag system for controlled rollouts
+- [ ] A/B testing framework (MemoryStore variant gating not built)
 - [ ] Crash / error aggregation & alerting
 
 ### Phase 8: Scalability & Cross-Server
@@ -192,10 +194,10 @@ Player stats, rank, owned cosmetics, and daily challenge progress are saved betw
 - [ ] Sharded leaderboards & caching layer
 
 ### Phase 9: Esports & Integrity
-- [ ] Enhanced anti-cheat heuristics + anomaly scoring
-- [ ] Match recording metadata logs (shots, damage events)
+- [~] Enhanced anti-cheat heuristics + anomaly scoring (heuristics done; scoring/action ladder pending)
+- [ ] Match recording metadata logs (shots, damage events persistence)
 - [ ] Admin review tooling & replay proto
-- [ ] Tournament seeding & bracket automation
+- [~] Tournament seeding & bracket automation (ELO seeding + progression basic)
 
 ### Phase 10: Continuous Improvement
 - [ ] Predictive balancing (collect weapon performance stats)

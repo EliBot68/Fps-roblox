@@ -14,7 +14,7 @@ local remoteRoot = ensureFolder(ReplicatedStorage, "RemoteEvents")
 local domains = { "MatchmakingEvents", "CombatEvents", "ShopEvents", "UIEvents" }
 local requiredEvents = {
 	MatchmakingEvents = { "RequestMatch", "LeaveQueue" },
-	CombatEvents = { "FireWeapon", "ReportHit", "RequestReload" },
+	CombatEvents = { "FireWeapon", "ReportHit", "RequestReload", "SwitchWeapon" },
 	ShopEvents = { "PurchaseItem", "EquipCosmetic" },
 	UIEvents = { "UpdateStats", "ShowLeaderboard" },
 }

@@ -11,6 +11,7 @@ local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
 local CombatEvents = RemoteRoot:WaitForChild("CombatEvents")
 local FireWeaponRemote = CombatEvents:WaitForChild("FireWeapon")
 local RequestReloadRemote = CombatEvents:WaitForChild("RequestReload")
+local SwitchWeaponRemote = CombatEvents:WaitForChild("SwitchWeapon")
 
 local currentWeapon = "AssaultRifle"
 local lastFire = 0
@@ -25,6 +26,10 @@ local function fire()
 	FireWeaponRemote:FireServer(origin, direction)
 end
 
+local function switchWeapon(id)
+	SwitchWeaponRemote:FireServer(id)
+end
+
 UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -35,3 +40,7 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 -- TODO: listen to UpdateStats for HUD updates
+
+-- Placeholder input binding (developer to connect to UI):
+-- switchWeapon("SMG")
+-- switchWeapon("Sniper")

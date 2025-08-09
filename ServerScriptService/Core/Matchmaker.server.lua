@@ -26,6 +26,8 @@ local score = { A = 0, B = 0 }
 local Metrics = require(script.Parent.Metrics)
 local DataStore = require(script.Parent.DataStore)
 local RankManager = require(script.Parent.RankManager)
+local CurrencyManager = require(script.Parent.Parent.Economy.CurrencyManager)
+local DailyChallenges = require(script.Parent.Parent.Events.DailyChallenges)
 
 local function broadcast(eventName, payload)
 	-- Placeholder: use RemoteEvent later
@@ -72,12 +74,13 @@ local function endMatch(reason)
 		for _,p in ipairs(winners) do
 			RankManager.ApplyResult(p, winnerAvg, 1)
 			local prof = DataStore.Get(p); if prof then prof.TotalMatches += 1; DataStore.MarkDirty(p) end
+			CurrencyManager.AwardForWin(p)
+			DailyChallenges.Inc(p, "wins_1", 1)
 		end
 		local other = winners == teams.A and teams.B or teams.A
 		for _,p in ipairs(other) do
 			RankManager.ApplyResult(p, winnerAvg, 0)
 			local prof = DataStore.Get(p); if prof then prof.TotalMatches += 1; DataStore.MarkDirty(p) end
-			table.insert(losers, p)
 		end
 	end
 	clearQueue()
@@ -136,6 +139,8 @@ function Matchmaker.OnPlayerKill(killer, victim)
 	if score[other] >= SCORE_TO_WIN then
 		endMatch("ScoreWin")
 	end
+	CurrencyManager.AwardForKill(killer)
+	DailyChallenges.Inc(killer, "elims_10", 1)
 end
 
 Players.PlayerRemoving:Connect(function(plr)

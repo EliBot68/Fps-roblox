@@ -30,4 +30,12 @@ function CurrencyManager.Spend(plr, cost, reason)
 	return true
 end
 
+function CurrencyManager.AwardForKill(plr)
+	CurrencyManager.Award(plr, 10, "Kill")
+end
+
+function CurrencyManager.AwardForWin(plr)
+	CurrencyManager.Award(plr, 100, "Win")
+end
+
 return CurrencyManager

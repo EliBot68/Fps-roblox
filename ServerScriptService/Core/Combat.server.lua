@@ -10,6 +10,7 @@ local Matchmaker = require(script.Parent.Matchmaker)
 local Logging = require(ReplicatedStorage.Shared.Logging)
 local Metrics = require(script.Parent.Metrics)
 local AntiCheat = require(script.Parent.AntiCheat)
+local KillStreakManager = require(script.Parent.KillStreakManager)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -20,6 +21,8 @@ local RequestReloadRemote = CombatEvents:FindFirstChild("RequestReload") or Inst
 RequestReloadRemote.Name = "RequestReload"; RequestReloadRemote.Parent = CombatEvents
 local UpdateStatsRemote = UIEvents:FindFirstChild("UpdateStats") or Instance.new("RemoteEvent")
 UpdateStatsRemote.Name = "UpdateStats"; UpdateStatsRemote.Parent = UIEvents
+local SwitchWeaponRemote = CombatEvents:FindFirstChild("SwitchWeapon") or Instance.new("RemoteEvent")
+SwitchWeaponRemote.Name = "SwitchWeapon"; SwitchWeaponRemote.Parent = CombatEvents
 
 local Combat = {}
 
@@ -27,7 +30,7 @@ local health = {}
 local MAX_HEALTH = 100
 
 local playerState = {}
--- playerState[player] = { lastFire=0, weapon="AssaultRifle", ammo=mag, reserve=total, deaths=0, kills=0 }
+-- playerState[player] = { lastFire=0, weapon="AssaultRifle", ammo=mag, reserve=total, deaths=0, kills=0, inventory = {"AssaultRifle"} }
 
 local function initPlayer(plr)
 	if not playerState[plr] then
@@ -39,6 +42,7 @@ local function initPlayer(plr)
 			reserve = w.MagazineSize * 3,
 			kills = 0,
 			deaths = 0,
+			inventory = { "AssaultRifle" },
 		}
 	end
 	if not health[plr] then
@@ -90,19 +94,24 @@ function Combat.Fire(plr, origin, direction)
 			local targetPlayer = Players:GetPlayerFromCharacter(hitChar)
 			if targetPlayer and targetPlayer ~= plr then
 				initPlayer(targetPlayer)
-				health[targetPlayer] -= wStats.Damage
+				local isHead = (result.Instance.Name == "Head")
+				local damage = wStats.Damage
+				if isHead then damage *= 1.5 end
+				health[targetPlayer] -= damage
 				if health[targetPlayer] <= 0 then
 					state.kills += 1
 					playerState[targetPlayer].deaths += 1
 					print(plr.Name .. " eliminated " .. targetPlayer.Name)
-					Logging.Event("Elimination", { killer = plr.UserId, victim = targetPlayer.UserId, w = state.weapon })
+					Logging.Event("Elimination", { killer = plr.UserId, victim = targetPlayer.UserId, w = state.weapon, head = isHead })
 					Metrics.Inc("Eliminations")
 					Matchmaker.OnPlayerKill(plr, targetPlayer)
+					KillStreakManager.OnKill(plr, targetPlayer)
+					KillStreakManager.Reset(targetPlayer)
 					health[targetPlayer] = MAX_HEALTH
 					-- Simple immediate respawn placeholder
-					AntiCheat.RecordHit(plr, false)
+					AntiCheat.RecordHit(plr, isHead)
 				else
-					AntiCheat.RecordHit(plr, false)
+					AntiCheat.RecordHit(plr, isHead)
 				end
 			end
 		end
@@ -126,6 +135,30 @@ function Combat.Reload(plr)
 	return true, { ammo = state.ammo, reserve = state.reserve }
 end
 
+function Combat.SwitchWeapon(plr, newWeapon)
+	initPlayer(plr)
+	local state = playerState[plr]
+	for _,w in ipairs(state.inventory) do
+		if w == newWeapon then
+			if state.weapon == newWeapon then return end
+			state.weapon = newWeapon
+			local cfg = weaponStats(newWeapon)
+			if cfg then
+				-- reset ammo if switching to a weapon without stored ammo yet (simple scaffold)
+				if state["ammo_"..newWeapon] then
+					state.ammo = state["ammo_"..newWeapon]
+					state.reserve = state["reserve_"..newWeapon]
+				else
+					state.ammo = cfg.MagazineSize
+					state.reserve = cfg.MagazineSize * 3
+				end
+				pushStats(plr)
+			end
+			return
+		end
+	end
+end
+
 -- Remote wiring
 if FireWeaponRemote then
 	FireWeaponRemote.OnServerEvent:Connect(function(plr, origin, direction)
@@ -136,6 +169,11 @@ end
 
 RequestReloadRemote.OnServerEvent:Connect(function(plr)
 	Combat.Reload(plr)
+end)
+
+SwitchWeaponRemote.OnServerEvent:Connect(function(plr, weaponId)
+	if typeof(weaponId) ~= "string" then return end
+	Combat.SwitchWeapon(plr, weaponId)
 end)
 
 Players.PlayerAdded:Connect(function(plr)

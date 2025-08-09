@@ -23,6 +23,8 @@ local DEFAULT_PROFILE = {
 	Elo = 1000,
 	Currency = 0,
 	OwnedCosmetics = {},
+	OwnedWeapons = { AssaultRifle = true },
+	EquippedCosmetic = nil,
 	Daily = { Challenges = {}, ResetAt = 0 },
 }
 
