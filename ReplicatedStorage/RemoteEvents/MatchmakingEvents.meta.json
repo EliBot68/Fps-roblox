@@ -1,0 +1,17 @@
+{
+	"className": "Folder",
+	"children": {
+		"LeaveQueue": {
+			"className": "RemoteEvent"
+		},
+		"MatchEnd": {
+			"className": "RemoteEvent"
+		},
+		"MatchStart": {
+			"className": "RemoteEvent"
+		},
+		"RequestMatch": {
+			"className": "RemoteEvent"
+		}
+	}
+}

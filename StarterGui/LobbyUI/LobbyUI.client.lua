@@ -16,25 +16,25 @@ local MatchmakingEvents = RemoteRoot:WaitForChild("MatchmakingEvents")
 local UIEvents = RemoteRoot:WaitForChild("UIEvents")
 
 function LobbyUI.Initialize()
-	-- Create main lobby frame
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "LobbyUI"
-	screenGui.Parent = playerGui
+	-- Temporarily disable game mode selection for practice map testing
+	-- Players will spawn directly in lobby with practice range access
+	print("LobbyUI initialized - Practice Mode Active")
 	
-	-- Main lobby frame
-	local mainFrame = Instance.new("Frame")
-	mainFrame.Name = "MainLobby"
-	mainFrame.Size = UDim2.new(1, 0, 1, 0)
-	mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-	mainFrame.Parent = screenGui
-	
-	-- Game mode buttons
-	LobbyUI.CreateGameModeButtons(mainFrame)
-	
-	print("LobbyUI initialized")
+	-- Auto-hide CoreGUI elements that might interfere
+	local CoreGui = game:GetService("CoreGui")
+	pcall(function()
+		game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, true)
+		game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Health, true)
+		game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+	end)
 end
 
 function LobbyUI.CreateGameModeButtons(parent)
+	-- DISABLED: Game mode selection temporarily disabled for practice map testing
+	-- This function creates the Casual/Competitive/Tournament/Training selection screen
+	-- Will be re-enabled when game mode selection is needed
+	
+	--[[
 	local buttonContainer = Instance.new("Frame")
 	buttonContainer.Name = "GameModeButtons"
 	buttonContainer.Size = UDim2.new(0.8, 0, 0.6, 0)
@@ -61,6 +61,7 @@ function LobbyUI.CreateGameModeButtons(parent)
 			LobbyUI.JoinGameMode(mode)
 		end)
 	end
+	--]]
 end
 
 function LobbyUI.JoinGameMode(mode)

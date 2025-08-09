@@ -1,0 +1,11 @@
+{
+	"className": "Folder",
+	"children": {
+		"EquipCosmetic": {
+			"className": "RemoteEvent"
+		},
+		"PurchaseItem": {
+			"className": "RemoteEvent"
+		}
+	}
+}

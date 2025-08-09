@@ -97,16 +97,16 @@ function ClientManager.InitializeCoreSystems()
 			local oldState = clientState.gameState
 			clientState.gameState = newState
 			
-			-- Handle state-specific UI changes
-			if newState == "match_active" then
-				ClientManager.ShowMatchHUD()
-			elseif newState == "lobby" then
-				ClientManager.ShowLobbyUI()
-			elseif newState == "match_ending" then
-				ClientManager.ShowMatchResults(data)
-			end
-			
-			print("[ClientManager] Game state: " .. oldState .. " → " .. newState)
+		-- Handle state-specific UI changes
+		if newState == "match_active" then
+			ClientManager.ShowMatchHUD()
+		elseif newState == "lobby" then
+			-- DISABLED: LobbyUI temporarily disabled for practice map testing
+			-- ClientManager.ShowLobbyUI()
+			print("[ClientManager] Lobby state active - Practice Mode")
+		elseif newState == "match_ending" then
+			ClientManager.ShowMatchResults(data)
+		end			print("[ClientManager] Game state: " .. oldState .. " → " .. newState)
 		end,
 		
 		showNotification = function(message, type, duration)

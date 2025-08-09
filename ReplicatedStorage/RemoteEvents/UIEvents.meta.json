@@ -1,0 +1,20 @@
+{
+	"className": "Folder",
+	"children": {
+		"AntiCheatWarning": {
+			"className": "RemoteEvent"
+		},
+		"ShowLeaderboard": {
+			"className": "RemoteEvent"
+		},
+		"UpdateCurrency": {
+			"className": "RemoteEvent"
+		},
+		"UpdateStats": {
+			"className": "RemoteEvent"
+		},
+		"ShowNotification": {
+			"className": "RemoteEvent"
+		}
+	}
+}
