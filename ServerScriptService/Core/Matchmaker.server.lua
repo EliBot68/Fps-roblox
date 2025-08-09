@@ -31,6 +31,12 @@ local queues = {
 
 local activeMatches = {} -- Support multiple concurrent matches
 local matchId = 0
+local queue = {} -- Fixed: undefined variable
+local inMatch = false -- Fixed: undefined variable
+local countdownActive = false -- Fixed: undefined variable
+local matchStartTime = 0 -- Fixed: undefined variable
+local MIN_PLAYERS = 2 -- Fixed: undefined variable
+local MAX_PLAYERS = 8 -- Fixed: undefined variable
 
 local teams = { A = {}, B = {} }
 local score = { A = 0, B = 0 }
