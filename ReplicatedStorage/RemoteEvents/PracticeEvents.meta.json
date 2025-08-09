@@ -1,0 +1,14 @@
+{
+	"className": "Folder",
+	"children": {
+		"TeleportToPractice": {
+			"className": "RemoteEvent"
+		},
+		"TeleportToLobby": {
+			"className": "RemoteEvent"
+		},
+		"SelectWeapon": {
+			"className": "RemoteEvent"
+		}
+	}
+}
