@@ -19,8 +19,31 @@ local WeaponUtils = require(Modules:WaitForChild("WeaponUtils"))
 -- Import enterprise rate limiting
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local RateLimiter = require(Shared:WaitForChild("RateLimiter"))
+local ObjectPool = require(Shared:WaitForChild("ObjectPool"))
+local NetworkBatcher = require(Shared:WaitForChild("NetworkBatcher"))
 
 local WeaponServer = {}
+
+-- Initialize enterprise systems
+ObjectPool.new("BulletEffects", function()
+	local effect = Instance.new("Part")
+	effect.Name = "BulletTrail"
+	effect.Size = Vector3.new(0.1, 0.1, 2)
+	effect.Material = Enum.Material.Neon
+	effect.CanCollide = false
+	effect.Anchored = true
+	return effect
+end)
+
+ObjectPool.new("HitEffects", function()
+	local effect = Instance.new("Explosion")
+	effect.BlastRadius = 0
+	effect.BlastPressure = 0
+	return effect
+end)
+
+-- Initialize network batching
+NetworkBatcher.Initialize()
 
 -- Player weapon states
 local PlayerWeapons = {} -- [UserId] = {Primary, Secondary, Melee, CurrentSlot, Ammo}
@@ -258,21 +281,11 @@ function WeaponServer.HandleFireWeapon(player: Player, weaponId: string, originC
 		end
 	end
 	
-	-- Send fire confirmation to all clients for VFX
-	for _, otherPlayer in ipairs(Players:GetPlayers()) do
-		WeaponStateRemote:FireClient(otherPlayer, {
-			Type = "WeaponFired",
-			Player = player.Name,
-			WeaponId = weaponId,
-			Origin = serverOrigin,
-			Direction = direction,
-			Hits = hitData
-		})
-	end
+	-- Use enterprise network batching instead of individual FireClient calls
+	NetworkBatcher.QueueWeaponFire(player, weaponId, hitData)
 	
-	-- Send updated ammo to firing player
-	WeaponStateRemote:FireClient(player, {
-		Type = "AmmoUpdate",
+	-- Send updated ammo to firing player (immediate for responsive feel)
+	NetworkBatcher.QueueUIUpdate(player, "AmmoUpdate", {
 		WeaponId = weaponId,
 		CurrentAmmo = playerWeapons.Ammo[weaponId],
 		MaxAmmo = weapon.MagazineSize
