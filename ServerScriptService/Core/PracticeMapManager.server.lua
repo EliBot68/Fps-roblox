@@ -11,17 +11,21 @@ local Logging = require(ReplicatedStorage.Shared.Logging)
 
 local PracticeMapManager = {}
 
--- Practice map configuration
+-- Practice map configuration with proper spatial separation
 local PRACTICE_CONFIG = {
-	mapSize = Vector3.new(200, 10, 200),
-	spawnPosition = Vector3.new(0, 50, 0),
-	weaponPadSpacing = 15,
+	-- Practice arena is 1000 studs away from main spawn to avoid conflicts
+	mapSize = Vector3.new(300, 10, 400),
+	spawnPosition = Vector3.new(1000, 50, 1000), -- FAR from main spawn (0,0,0)
+	weaponPadSpacing = 20,
+	-- Target dummies positioned in practice arena space
 	dummyPositions = {
-		Vector3.new(0, 5, 50),
-		Vector3.new(-20, 5, 60),
-		Vector3.new(20, 5, 60),
-		Vector3.new(0, 5, 80)
-	}
+		Vector3.new(1000, 55, 1150),      -- Forward center
+		Vector3.new(980, 55, 1180),       -- Forward left
+		Vector3.new(1020, 55, 1180),      -- Forward right
+		Vector3.new(1000, 55, 1200)       -- Far forward
+	},
+	-- Return portal positioned in practice arena
+	returnPortalPosition = Vector3.new(950, 60, 1000)
 }
 
 -- Active practice sessions
@@ -33,36 +37,40 @@ function PracticeMapManager.CreatePracticeMap()
 	practiceMap.Name = "PracticeMap"
 	practiceMap.Parent = workspace
 	
-	-- Create ground platform
+	-- Create main practice ground platform (far from spawn)
 	local ground = Instance.new("Part")
-	ground.Name = "Ground"
+	ground.Name = "PracticeGround"
 	ground.Size = PRACTICE_CONFIG.mapSize
-	ground.Position = Vector3.new(0, 0, 0)
+	ground.Position = Vector3.new(1000, 40, 1100) -- Centered in practice area
 	ground.Material = Enum.Material.Concrete
-	ground.Color = Color3.new(0.3, 0.3, 0.3)
+	ground.Color = Color3.new(0.2, 0.3, 0.2) -- Dark green for practice
 	ground.Anchored = true
 	ground.Parent = practiceMap
 	
-	-- Create spawn platform
+	-- Create practice spawn platform
 	local spawnPlatform = Instance.new("Part")
-	spawnPlatform.Name = "SpawnPlatform"
-	spawnPlatform.Size = Vector3.new(20, 2, 20)
+	spawnPlatform.Name = "PracticeSpawn"
+	spawnPlatform.Size = Vector3.new(25, 3, 25)
 	spawnPlatform.Position = PRACTICE_CONFIG.spawnPosition
 	spawnPlatform.Material = Enum.Material.Neon
-	spawnPlatform.Color = Color3.new(0, 1, 0)
+	spawnPlatform.Color = Color3.new(0, 1, 0) -- Green spawn indicator
 	spawnPlatform.Anchored = true
 	spawnPlatform.Parent = practiceMap
 	
-	-- Create spawn point for players
+	-- Create spawn point for teleported players
 	local spawnPoint = Instance.new("SpawnLocation")
-	spawnPoint.Name = "PracticeSpawn"
-	spawnPoint.Size = Vector3.new(4, 1, 4)
-	spawnPoint.Position = PRACTICE_CONFIG.spawnPosition + Vector3.new(0, 2, 0)
+	spawnPoint.Name = "PracticeSpawnLocation"
+	spawnPoint.Size = Vector3.new(6, 1, 6)
+	spawnPoint.Position = PRACTICE_CONFIG.spawnPosition + Vector3.new(0, 3, 0)
 	spawnPoint.Material = Enum.Material.ForceField
 	spawnPoint.BrickColor = BrickColor.new("Bright green")
 	spawnPoint.Anchored = true
 	spawnPoint.CanCollide = false
+	spawnPoint.Enabled = false -- Disable automatic spawning here
 	spawnPoint.Parent = practiceMap
+	
+	-- Add boundaries to prevent players from falling
+	PracticeMapManager.CreateBoundaries(practiceMap)
 	
 	-- Create weapon selection pads
 	PracticeMapManager.CreateWeaponPads(practiceMap)
@@ -73,11 +81,39 @@ function PracticeMapManager.CreatePracticeMap()
 	-- Create return portal
 	PracticeMapManager.CreateReturnPortal(practiceMap)
 	
-	Logging.Info("PracticeMapManager", "Practice map created successfully")
+	Logging.Info("PracticeMapManager", "Practice map created at coordinates (1000, 50, 1000)")
 	return practiceMap
 end
 
--- Create weapon selection touchpads
+-- Create boundaries to prevent players from falling off practice area
+function PracticeMapManager.CreateBoundaries(practiceMap)
+	local boundariesFolder = Instance.new("Folder")
+	boundariesFolder.Name = "Boundaries"
+	boundariesFolder.Parent = practiceMap
+	
+	-- Create invisible walls around practice area
+	local boundaryPositions = {
+		{pos = Vector3.new(850, 60, 1100), size = Vector3.new(10, 50, 400)}, -- Left wall
+		{pos = Vector3.new(1150, 60, 1100), size = Vector3.new(10, 50, 400)}, -- Right wall
+		{pos = Vector3.new(1000, 60, 900), size = Vector3.new(300, 50, 10)}, -- Back wall
+		{pos = Vector3.new(1000, 60, 1300), size = Vector3.new(300, 50, 10)} -- Front wall
+	}
+	
+	for i, boundary in ipairs(boundaryPositions) do
+		local wall = Instance.new("Part")
+		wall.Name = "Boundary" .. i
+		wall.Size = boundary.size
+		wall.Position = boundary.pos
+		wall.Material = Enum.Material.ForceField
+		wall.Transparency = 0.8
+		wall.CanCollide = true
+		wall.Anchored = true
+		wall.Color = Color3.new(1, 0, 0) -- Red tint to indicate boundary
+		wall.Parent = boundariesFolder
+	end
+end
+
+-- Create weapon selection touchpads in practice area
 function PracticeMapManager.CreateWeaponPads(practiceMap)
 	local weaponPadsFolder = Instance.new("Folder")
 	weaponPadsFolder.Name = "WeaponPads"
@@ -97,14 +133,14 @@ function PracticeMapManager.CreateWeaponPads(practiceMap)
 		local weapon = WeaponConfig[weaponId]
 		if not weapon then continue end
 		
-		-- Calculate position in a line
+		-- Position weapon pads in a line in front of practice spawn
 		local xOffset = (i - 3.5) * PRACTICE_CONFIG.weaponPadSpacing
-		local position = Vector3.new(xOffset, 1, -30)
+		local position = Vector3.new(1000 + xOffset, 46, 970) -- In practice area, south of spawn
 		
 		-- Create weapon pad
 		local weaponPad = Instance.new("Part")
 		weaponPad.Name = weaponId .. "Pad"
-		weaponPad.Size = Vector3.new(8, 1, 8)
+		weaponPad.Size = Vector3.new(12, 2, 12)
 		weaponPad.Position = position
 		weaponPad.Material = Enum.Material.Neon
 		weaponPad.Color = padColors[weaponId] or Color3.new(1, 1, 1)
@@ -301,8 +337,8 @@ end
 function PracticeMapManager.CreateReturnPortal(practiceMap)
 	local portal = Instance.new("Part")
 	portal.Name = "ReturnPortal"
-	portal.Size = Vector3.new(6, 10, 1)
-	portal.Position = Vector3.new(-80, 5, 0)
+	portal.Size = Vector3.new(8, 15, 2)
+	portal.Position = PRACTICE_CONFIG.returnPortalPosition
 	portal.Material = Enum.Material.ForceField
 	portal.Color = Color3.new(0, 1, 1) -- Cyan
 	portal.Anchored = true
@@ -385,7 +421,7 @@ function PracticeMapManager.TeleportToPractice(player)
 		hits = 0
 	}
 	
-	-- Teleport player
+	-- Teleport player to practice area (far from main spawn)
 	local humanoidRootPart = player.Character.HumanoidRootPart
 	humanoidRootPart.CFrame = CFrame.new(PRACTICE_CONFIG.spawnPosition + Vector3.new(0, 5, 0))
 	
@@ -394,14 +430,14 @@ function PracticeMapManager.TeleportToPractice(player)
 	local UIEvents = RemoteRoot:WaitForChild("UIEvents")
 	local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
 	if notificationRemote then
-		notificationRemote:FireClient(player, "Welcome to Practice Range!", "info", 3)
+		notificationRemote:FireClient(player, "🎯 Welcome to Practice Range!", "Walk on colored pads to select weapons. Shoot the dummies!", 5)
 	end
 	
-	Logging.Info("PracticeMapManager", player.Name .. " entered practice map")
+	Logging.Info("PracticeMapManager", player.Name .. " teleported to practice area at (1000, 55, 1000)")
 	return true
 end
 
--- Return player to lobby
+-- Return player to main lobby spawn
 function PracticeMapManager.ReturnToLobby(player)
 	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
 		return false
@@ -419,21 +455,24 @@ function PracticeMapManager.ReturnToLobby(player)
 		local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
 		if notificationRemote then
 			notificationRemote:FireClient(player, 
-				string.format("Practice Complete! Accuracy: %.1f%%", accuracy), 
-				"success", 3)
+				string.format("🏆 Practice Complete! Accuracy: %.1f%% | Time: %ds", accuracy, duration), 
+				"success", 5)
 		end
 		
 		practiceSessions[player.UserId] = nil
 	end
 	
-	-- Teleport back to spawn
+	-- Teleport back to main spawn area (0, 0, 0 region)
+	local humanoidRootPart = player.Character.HumanoidRootPart
 	local spawnLocation = workspace:FindFirstChild("SpawnLocation") 
 	if spawnLocation then
-		local humanoidRootPart = player.Character.HumanoidRootPart
-		humanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(math.random(-10, 10), 5, math.random(-10, 10))
+		humanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(math.random(-15, 15), 8, math.random(-15, 15))
+	else
+		-- Default main spawn position if no SpawnLocation found
+		humanoidRootPart.CFrame = CFrame.new(math.random(-20, 20), 10, math.random(-20, 20))
 	end
 	
-	Logging.Info("PracticeMapManager", player.Name .. " returned to lobby")
+	Logging.Info("PracticeMapManager", player.Name .. " returned to main lobby spawn")
 	return true
 end
 

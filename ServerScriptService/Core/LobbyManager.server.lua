@@ -11,24 +11,24 @@ local LobbyManager = {}
 
 -- Create practice teleport button at spawn
 function LobbyManager.CreatePracticeTeleportButton()
-	-- Find spawn location or create one
+	-- Find or create spawn location in main lobby area
 	local spawnLocation = workspace:FindFirstChild("SpawnLocation")
 	if not spawnLocation then
 		spawnLocation = Instance.new("SpawnLocation")
 		spawnLocation.Name = "SpawnLocation"
-		spawnLocation.Size = Vector3.new(6, 1, 6)
-		spawnLocation.Position = Vector3.new(0, 0.5, 0)
+		spawnLocation.Size = Vector3.new(8, 1, 8)
+		spawnLocation.Position = Vector3.new(0, 0.5, 0) -- Main lobby spawn at origin
 		spawnLocation.Material = Enum.Material.Neon
 		spawnLocation.BrickColor = BrickColor.new("Bright green")
 		spawnLocation.Anchored = true
 		spawnLocation.Parent = workspace
 	end
 	
-	-- Create teleport button
+	-- Create teleport button positioned away from spawn to avoid overlap
 	local teleportButton = Instance.new("Part")
 	teleportButton.Name = "PracticeTeleportButton"
-	teleportButton.Size = Vector3.new(4, 2, 4)
-	teleportButton.Position = Vector3.new(10, 2, 0) -- Position near spawn
+	teleportButton.Size = Vector3.new(6, 3, 6)
+	teleportButton.Position = Vector3.new(25, 3, 0) -- 25 studs away from main spawn
 	teleportButton.Material = Enum.Material.Neon
 	teleportButton.Color = Color3.new(0, 0.5, 1) -- Blue
 	teleportButton.Anchored = true
@@ -109,11 +109,11 @@ end
 
 -- Create lobby information display
 function LobbyManager.CreateLobbyInfo()
-	-- Create welcome sign
+	-- Create welcome sign positioned in main lobby area
 	local welcomeSign = Instance.new("Part")
 	welcomeSign.Name = "WelcomeSign"
-	welcomeSign.Size = Vector3.new(0.2, 8, 12)
-	welcomeSign.Position = Vector3.new(-15, 4, 0)
+	welcomeSign.Size = Vector3.new(0.5, 12, 20)
+	welcomeSign.Position = Vector3.new(-30, 6, 0) -- West of main spawn area
 	welcomeSign.Material = Enum.Material.Neon
 	welcomeSign.Color = Color3.new(0.1, 0.1, 0.1)
 	welcomeSign.Anchored = true
