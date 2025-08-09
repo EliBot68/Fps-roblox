@@ -1,15 +1,22 @@
--- MetricsDashboard.server.lua
--- Real-time metrics collection and dashboard system
+--[[
+	MetricsDashboard.server.lua
+	Enterprise real-time metrics collection and monitoring dashboard
+	
+	Provides comprehensive monitoring with alerting, trending, and anomaly detection
+]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MemoryStoreService = game:GetService("MemoryStoreService")
+
 local Logging = require(ReplicatedStorage.Shared.Logging)
+local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 
 local MetricsDashboard = {}
 
--- Metrics storage
+-- Enhanced metrics storage with enterprise features
 local metrics = {
 	counters = {},
 	gauges = {},
@@ -20,12 +27,41 @@ local metrics = {
 		playerCount = 0,
 		memoryUsage = 0,
 		networkIn = 0,
-		networkOut = 0
-	}
+		networkOut = 0,
+		uptime = tick()
+	},
+	security = {
+		rateLimitViolations = 0,
+		antiCheatAlerts = 0,
+		bannedPlayers = 0,
+		suspiciousActivity = 0
+	},
+	alerts = {},
+	trends = {}
 }
 
-local METRICS_HISTORY_SIZE = 100
+-- Alert thresholds and configuration
+local alertConfig = {
+	thresholds = {
+		serverFPS = 30,
+		memoryUsage = 80,
+		rateLimitViolations = 50,
+		antiCheatAlerts = 10,
+		playerCount = 55
+	},
+	enabled = true,
+	alertCooldown = 300 -- 5 minutes
+}
+
+local METRICS_HISTORY_SIZE = 300 -- 5 minutes at 1Hz
 local metricsHistory = {}
+local activeAlerts = {}
+
+-- Cross-server metrics coordination
+local crossServerMetrics = nil
+pcall(function()
+	crossServerMetrics = MemoryStoreService:GetSortedMap("MetricsGlobal")
+end)
 
 -- Dashboard RemoteEvent
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
