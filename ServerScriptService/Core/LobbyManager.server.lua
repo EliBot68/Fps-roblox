@@ -180,12 +180,36 @@ function LobbyManager.HandleTouch(hit, statusLabel)
 		print("[LobbyManager] Executing teleport...")
 		
 		local success, error = pcall(function()
-			print("[LobbyManager] Looking for PracticeMapManager...")
-			local PracticeMapManager = require(game.ServerScriptService.Core:WaitForChild("PracticeMapManager"))
-			print("[LobbyManager] Found PracticeMapManager, calling TeleportToPractice...")
-			local result = PracticeMapManager.TeleportToPractice(player)
-			print("[LobbyManager] TeleportToPractice result:", result)
-			return result
+			print("[LobbyManager] Teleporting player directly...")
+			
+			-- Direct teleport implementation (avoiding require issue)
+			if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+				error("Player character not ready for teleport")
+				return false
+			end
+			
+			-- Teleport to practice area (same position as PracticeMapManager uses)
+			local humanoidRootPart = player.Character.HumanoidRootPart
+			local practicePosition = Vector3.new(1000, 55, 1000) -- Practice spawn position
+			humanoidRootPart.CFrame = CFrame.new(practicePosition)
+			
+			print("[LobbyManager] Player", player.Name, "teleported to practice area at", practicePosition)
+			
+			-- Send notification using remote events
+			local success2, error2 = pcall(function()
+				local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
+				local UIEvents = RemoteRoot:WaitForChild("UIEvents")
+				local notificationRemote = UIEvents:FindFirstChild("ShowNotification")
+				if notificationRemote then
+					notificationRemote:FireClient(player, "🎯 Welcome to Practice Range!", "You have been teleported to the practice area!", 5)
+				end
+			end)
+			
+			if not success2 then
+				print("[LobbyManager] Warning: Could not send notification:", error2)
+			end
+			
+			return true
 		end)
 		
 		if success then
