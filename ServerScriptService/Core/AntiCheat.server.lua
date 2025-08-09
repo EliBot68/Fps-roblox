@@ -1,7 +1,8 @@
 -- AntiCheat.server.lua
--- Enhanced anti-cheat heuristics
+-- Enhanced anti-cheat heuristics with progressive punishment
 
 local RunService = game:GetService("RunService")
+local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Logging = require(ReplicatedStorage.Shared.Logging)
 local Metrics = require(script.Parent.Metrics)
@@ -22,8 +23,42 @@ local function bump(player, key, weight)
 	anomalyScore[player] = anomalyScore[player] or { total = 0 }
 	anomalyScore[player].total += weight
 	anomalyScore[player][key] = (anomalyScore[player][key] or 0) + 1
-	if anomalyScore[player].total > 50 then
-		Logging.Warn("AntiCheat", player.Name .. " high anomaly score=" .. anomalyScore[player].total)
+	
+	local totalScore = anomalyScore[player].total
+	
+	-- Progressive punishment system
+	if totalScore > 150 then
+		-- Immediate ban for severe violations
+		player:Kick("Detected cheating - Banned")
+		-- Log to DataStore for permanent ban tracking
+		pcall(function()
+			DataStoreService:GetDataStore("BannedPlayers"):SetAsync(
+				tostring(player.UserId), 
+				{banned = true, reason = "Anti-cheat detection", timestamp = os.time()}
+			)
+		end)
+	elseif totalScore > 100 then
+		-- Temporary kick for high suspicion
+		player:Kick("Suspected cheating detected - Please reconnect")
+	elseif totalScore > 75 then
+		-- Warning to player
+		local warningCount = (anomalyScore[player].warnings or 0) + 1
+		anomalyScore[player].warnings = warningCount
+		
+		if warningCount >= 3 then
+			player:Kick("Multiple warnings - Temporary suspension")
+		else
+			-- Send warning to player via RemoteEvent
+			local UIEvents = ReplicatedStorage.RemoteEvents.UIEvents
+			local warningRemote = UIEvents:FindFirstChild("AntiCheatWarning")
+			if warningRemote then
+				warningRemote:FireClient(player, "Warning: Suspicious activity detected (" .. warningCount .. "/3)")
+			end
+		end
+	elseif totalScore > 50 then
+		-- Silent monitoring - increase tracking
+		anomalyScore[player].monitoringLevel = (anomalyScore[player].monitoringLevel or 1) + 0.5
+		Logging.Warn("AntiCheat", player.Name .. " high anomaly score=" .. totalScore)
 		Metrics.Inc("AC_AnomalyHigh")
 	end
 end

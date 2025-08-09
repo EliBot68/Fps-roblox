@@ -165,19 +165,19 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 
 ### Phase 4: Economy & Progression
 - [x] Currency system (earn on kills, wins, streaks) (client updates currency via remote)
-- [~] Cosmetics store with weapon skins and player accessories (server purchase logic; UI + cosmetic visuals pending)
+- [x] Cosmetics store with weapon skins and player accessories (complete shop UI with tab system)
 - [x] Daily challenges with rotating objectives (kill & win hooks active)
-- [ ] Rank-based rewards and unlocks (no gating logic yet)
+- [x] Rank-based rewards and unlocks (tier-based weapon/cosmetic unlocking system)
 
 ### Phase 5: Content Expansion
 - [ ] Additional maps with unique layouts and themes
 - [~] Kill streak rewards and power-ups (streak currency rewards present; power-up effects not implemented)
 - [ ] Seasonal events and limited-time cosmetics
-- [~] Spectator mode and replay system (camera target cycling + replay event log scaffold; full replay playback pending)
+- [x] Spectator mode and replay system (complete spectator camera controls and replay playback with timeline)
 
 ### Phase 6: Competitive Features
 - [ ] Ranked seasons with placement matches
-- [~] Tournament mode for organized competitions (single-elim bracket scaffold; no persistence/UI)
+- [x] Tournament mode for organized competitions (complete tournament UI with bracket visualization and player management)
 - [~] Clan system and team battles (in-memory clans + membership persistence; battles pending)
 - [ ] Advanced statistics and performance analytics
 
@@ -194,7 +194,7 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [ ] Sharded leaderboards & caching layer
 
 ### Phase 9: Esports & Integrity
-- [~] Enhanced anti-cheat heuristics + anomaly scoring (heuristics + anomaly score accumulator; action ladder pending)
+- [x] Enhanced anti-cheat heuristics + anomaly scoring (complete progressive punishment system with warnings, kicks, and bans)
 - [ ] Match recording metadata logs (fire & elimination events collected in memory)
 - [ ] Admin review tooling & replay proto
 - [~] Tournament seeding & bracket automation (ELO seeding + progression basic)

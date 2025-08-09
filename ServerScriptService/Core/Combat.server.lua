@@ -15,6 +15,7 @@ local RemoteValidator = require(ReplicatedStorage.Shared.RemoteValidator)
 local ReplayRecorder = require(script.Parent.ReplayRecorder)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local RateLimiter = require(script.Parent.RateLimiter)
+local RankRewards = require(script.Parent.RankRewards)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -154,6 +155,12 @@ end
 function Combat.SwitchWeapon(plr, newWeapon)
 	initPlayer(plr)
 	local state = playerState[plr]
+	
+	-- Check if player can use this weapon based on rank
+	if not RankRewards.CanUseWeapon(plr, newWeapon) then
+		return false, "Locked"
+	end
+	
 	for _,w in ipairs(state.inventory) do
 		if w == newWeapon then
 			if state.weapon == newWeapon then return end

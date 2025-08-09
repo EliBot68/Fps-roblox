@@ -30,7 +30,25 @@ local CurrencyManager = require(script.Parent.Parent.Economy.CurrencyManager)
 local DailyChallenges = require(script.Parent.Parent.Events.DailyChallenges)
 
 local function broadcast(eventName, payload)
-	-- Placeholder: use RemoteEvent later
+	local remoteRoot = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
+	local matchmakingEvents = remoteRoot:WaitForChild("MatchmakingEvents")
+	
+	if eventName == "MatchStarted" then
+		local matchStartRemote = matchmakingEvents:FindFirstChild("MatchStart")
+		if matchStartRemote then
+			for _,plr in ipairs(queue) do
+				matchStartRemote:FireClient(plr, MATCH_LENGTH)
+			end
+		end
+	elseif eventName == "MatchEnded" then
+		local matchEndRemote = matchmakingEvents:FindFirstChild("MatchEnd")
+		if matchEndRemote then
+			for _,plr in ipairs(Players:GetPlayers()) do
+				matchEndRemote:FireClient(plr)
+			end
+		end
+	end
+	
 	print("[Matchmaker] " .. eventName, payload and payload.state or "")
 end
 

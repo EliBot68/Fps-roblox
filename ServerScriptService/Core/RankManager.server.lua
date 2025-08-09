@@ -1,7 +1,8 @@
 -- RankManager.server.lua
--- ELO adjustment system
+-- ELO adjustment system with rank rewards integration
 
 local Utilities = require(game:GetService("ReplicatedStorage").Shared.Utilities)
+local DataStore = require(script.Parent.DataStore)
 
 local RankManager = {}
 
@@ -16,10 +17,9 @@ local TIERS = {
 	{ Name = "Champion", Min = 1900 },
 }
 
-local playerElo = {}
-
 function RankManager.Get(plr)
-	return playerElo[plr] or DEFAULT_ELO
+	local profile = DataStore.Get(plr)
+	return profile and profile.Elo or DEFAULT_ELO
 end
 
 local function tierFor(elo)
@@ -39,7 +39,21 @@ function RankManager.ApplyResult(plr, opponentAvg, score)
 	local ra = RankManager.Get(plr)
 	local expected = Utilities.EloExpected(ra, opponentAvg)
 	local newRating = Utilities.EloAdjust(ra, expected, score, K_FACTOR)
-	playerElo[plr] = newRating
+	
+	local profile = DataStore.Get(plr)
+	if profile then
+		local oldTier = tierFor(ra)
+		profile.Elo = newRating
+		DataStore.MarkDirty(plr)
+		
+		-- Check for rank-up rewards after ELO change
+		local newTier = tierFor(newRating)
+		if newTier ~= oldTier then
+			local RankRewards = require(script.Parent.RankRewards)
+			RankRewards.CheckUnlocks(plr)
+		end
+	end
+	
 	return newRating, tierFor(newRating)
 end
 
