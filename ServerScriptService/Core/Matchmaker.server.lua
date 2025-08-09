@@ -38,9 +38,17 @@ local function clearQueue()
 	for i = #queue,1,-1 do table.remove(queue, i) end
 end
 
+local function averageElo(players)
+	local sum = 0
+	for _,p in ipairs(players) do sum += RankManager.Get(p) end
+	return (#players>0) and (sum/#players) or 0
+end
+
 local function assignTeams()
 	teams.A = {}
 	teams.B = {}
+	-- simple balancing: alternate after sorting by Elo descending
+	table.sort(queue, function(a,b) return RankManager.Get(a) > RankManager.Get(b) end)
 	for i,plr in ipairs(queue) do
 		if i % 2 == 1 then table.insert(teams.A, plr) else table.insert(teams.B, plr) end
 	end

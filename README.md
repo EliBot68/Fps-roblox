@@ -152,10 +152,10 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [~] Basic HUD showing health, ammo, and match timer (health/ammo stats via Remote; GUI + timer pending)
 
 ### Phase 2: Core Systems
-- [~] ELO ranking system with skill-based matchmaking (ELO + tiers done; matchmaking still simple queue)
+- [~] ELO ranking system with skill-based matchmaking (ELO + tiers done; matchmaking now sorts by Elo for team balance; full bucket system pending)
 - [x] Data persistence for player stats and progress (schema v2, retries)
 - [x] Kill/death tracking and match statistics (basic K/D; richer per-match stats pending)
-- [x] Basic anti-cheat implementation (plus extended heuristics)
+- [x] Basic anti-cheat implementation (plus extended heuristics & anomaly score scaffold)
 
 ### Phase 3: Weapon Variety
 - [x] Add SMG with high fire rate, low damage
@@ -194,7 +194,7 @@ Legend: [x] complete, [~] partial / in progress, [ ] not started
 - [ ] Sharded leaderboards & caching layer
 
 ### Phase 9: Esports & Integrity
-- [~] Enhanced anti-cheat heuristics + anomaly scoring (heuristics done; scoring/action ladder pending)
+- [~] Enhanced anti-cheat heuristics + anomaly scoring (heuristics + anomaly score accumulator; action ladder pending)
 - [ ] Match recording metadata logs (shots, damage events persistence)
 - [ ] Admin review tooling & replay proto
 - [~] Tournament seeding & bracket automation (ELO seeding + progression basic)

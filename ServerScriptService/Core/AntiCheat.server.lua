@@ -17,6 +17,17 @@ local FIRE_WINDOW = 5
 local MAX_RPS_SOFT = 12
 local MAX_RPS_HARD = 18
 
+local anomalyScore = {}
+local function bump(player, key, weight)
+	anomalyScore[player] = anomalyScore[player] or { total = 0 }
+	anomalyScore[player].total += weight
+	anomalyScore[player][key] = (anomalyScore[player][key] or 0) + 1
+	if anomalyScore[player].total > 50 then
+		Logging.Warn("AntiCheat", player.Name .. " high anomaly score=" .. anomalyScore[player].total)
+		Metrics.Inc("AC_AnomalyHigh")
+	end
+end
+
 local function ensurePlayer(plr)
 	if not shotHistory[plr] then
 		shotHistory[plr] = { times = {}, hits = 0, head = 0 }
@@ -35,9 +46,11 @@ function AntiCheat.RecordShot(plr)
 	if rps > MAX_RPS_HARD then
 		Logging.Warn("AntiCheat", plr.Name .. " exceeded HARD RPS: " .. rps)
 		Metrics.Inc("AC_RPSHard")
+		bump(plr, "rpsHard", 15)
 	elseif rps > MAX_RPS_SOFT then
 		Logging.Event("AC_RPSSoft", { u = plr.UserId, rps = rps })
 		Metrics.Inc("AC_RPSSoft")
+		bump(plr, "rpsSoft", 5)
 	end
 end
 
@@ -52,11 +65,13 @@ function AntiCheat.RecordHit(plr, isHead)
 		if acc > 0.9 then
 			Logging.Warn("AntiCheat", plr.Name .. " high accuracy " .. acc)
 			Metrics.Inc("AC_HighAcc")
+			bump(plr, "acc", 10)
 		end
 		local headRatio = h.head / h.hits
 		if h.head > 5 and headRatio > 0.7 then
 			Logging.Warn("AntiCheat", plr.Name .. " headshot ratio " .. headRatio)
 			Metrics.Inc("AC_HeadRatio")
+			bump(plr, "head", 12)
 		end
 	end
 end
@@ -72,9 +87,11 @@ RunService.Heartbeat:Connect(function(dt)
 			if dist > MAX_TELEPORT_DIST then
 				Logging.Warn("AntiCheat", player.Name .. " teleport spike dist=" .. dist)
 				Metrics.Inc("AC_Teleport")
+				bump(player, "teleport", 20)
 			elseif speed > MAX_SPEED then
 				Logging.Warn("AntiCheat", player.Name .. " speed=" .. speed)
 				Metrics.Inc("AC_Speed")
+				bump(player, "speed", 8)
 			end
 			posData.Position = root.Position
 		else

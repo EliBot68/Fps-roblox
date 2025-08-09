@@ -11,6 +11,7 @@ local Logging = require(ReplicatedStorage.Shared.Logging)
 local Metrics = require(script.Parent.Metrics)
 local AntiCheat = require(script.Parent.AntiCheat)
 local KillStreakManager = require(script.Parent.KillStreakManager)
+local RemoteValidator = require(ReplicatedStorage.Shared.RemoteValidator)
 
 -- Ensure remote references
 local RemoteRoot = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -141,10 +142,13 @@ function Combat.SwitchWeapon(plr, newWeapon)
 	for _,w in ipairs(state.inventory) do
 		if w == newWeapon then
 			if state.weapon == newWeapon then return end
+			if state["ammo_"..state.weapon] == nil then
+				state["ammo_"..state.weapon] = state.ammo
+				state["reserve_"..state.weapon] = state.reserve
+			end
 			state.weapon = newWeapon
 			local cfg = weaponStats(newWeapon)
 			if cfg then
-				-- reset ammo if switching to a weapon without stored ammo yet (simple scaffold)
 				if state["ammo_"..newWeapon] then
 					state.ammo = state["ammo_"..newWeapon]
 					state.reserve = state["reserve_"..newWeapon]
@@ -162,7 +166,8 @@ end
 -- Remote wiring
 if FireWeaponRemote then
 	FireWeaponRemote.OnServerEvent:Connect(function(plr, origin, direction)
-		if typeof(origin) ~= "Vector3" or typeof(direction) ~= "Vector3" then return end
+		local ok = RemoteValidator.ValidateFire(origin, direction)
+		if not ok then return end
 		Combat.Fire(plr, origin, direction)
 	end)
 end
@@ -172,7 +177,8 @@ RequestReloadRemote.OnServerEvent:Connect(function(plr)
 end)
 
 SwitchWeaponRemote.OnServerEvent:Connect(function(plr, weaponId)
-	if typeof(weaponId) ~= "string" then return end
+	local ok = RemoteValidator.ValidateWeaponId(weaponId)
+	if not ok then return end
 	Combat.SwitchWeapon(plr, weaponId)
 end)
 
