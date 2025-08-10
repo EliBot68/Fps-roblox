@@ -21,6 +21,7 @@
 ]]--
 
 local ServiceLocator = require(script.Parent.ServiceLocator)
+local HttpService = game:GetService("HttpService")
 
 -- Types
 export type ErrorSeverity = "Low" | "Medium" | "High" | "Critical"
