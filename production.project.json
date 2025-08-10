@@ -1,0 +1,251 @@
+{
+  "name": "Enterprise-FPS-Production",
+  "gameId": null,
+  "placeId": null,
+  "servePort": 34872,
+  "globIgnorePaths": [
+    "**/*.md",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/docs/**",
+    "**/.vscode/**",
+    "**/temp/**"
+  ],
+  "tree": {
+    "$className": "DataModel",
+    
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "$path": "src/ReplicatedFirst"
+    },
+    
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$path": "src/ReplicatedStorage",
+      
+      "RemoteEvents": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/RemoteEvents",
+        "CombatEvents": {"$path": "src/ReplicatedStorage/RemoteEvents/CombatEvents"},
+        "MatchmakingEvents": {"$path": "src/ReplicatedStorage/RemoteEvents/MatchmakingEvents"},
+        "EconomyEvents": {"$path": "src/ReplicatedStorage/RemoteEvents/EconomyEvents"},
+        "TournamentEvents": {"$path": "src/ReplicatedStorage/RemoteEvents/TournamentEvents"},
+        "AdminEvents": {"$path": "src/ReplicatedStorage/RemoteEvents/AdminEvents"}
+      },
+      
+      "Shared": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/Shared"
+      },
+      
+      "Assets": {
+        "$className": "Folder",
+        "$path": "assets",
+        "Audio": {"$path": "assets/audio"},
+        "Models": {"$path": "assets/models"},
+        "Textures": {"$path": "assets/textures"},
+        "Animations": {"$path": "assets/animations"},
+        "VFX": {"$path": "assets/vfx"}
+      },
+      
+      "Localization": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/Localization"
+      },
+      
+      "Configurations": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/Configurations"
+      }
+    },
+    
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/ServerScriptService",
+      
+      "Core": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Core"
+      },
+      
+      "Systems": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Systems",
+        "Combat": {"$path": "src/ServerScriptService/Systems/Combat"},
+        "Economy": {"$path": "src/ServerScriptService/Systems/Economy"},
+        "Matchmaking": {"$path": "src/ServerScriptService/Systems/Matchmaking"},
+        "Tournament": {"$path": "src/ServerScriptService/Systems/Tournament"},
+        "Analytics": {"$path": "src/ServerScriptService/Systems/Analytics"},
+        "Security": {"$path": "src/ServerScriptService/Systems/Security"}
+      },
+      
+      "Services": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Services"
+      },
+      
+      "Modules": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Modules"
+      }
+    },
+    
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$path": "src/ServerStorage",
+      
+      "Data": {
+        "$className": "Folder",
+        "$path": "src/ServerStorage/Data"
+      },
+      
+      "Templates": {
+        "$className": "Folder",
+        "$path": "src/ServerStorage/Templates"
+      },
+      
+      "Backups": {
+        "$className": "Folder",
+        "$path": "src/ServerStorage/Backups"
+      }
+    },
+    
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$path": "src/StarterGui",
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ScreenOrientation": "LandscapeSensor"
+      },
+      
+      "UI": {
+        "$className": "Folder",
+        "$path": "src/StarterGui/UI",
+        "HUD": {"$path": "src/StarterGui/UI/HUD"},
+        "Menus": {"$path": "src/StarterGui/UI/Menus"},
+        "Shop": {"$path": "src/StarterGui/UI/Shop"},
+        "Tournament": {"$path": "src/StarterGui/UI/Tournament"},
+        "Settings": {"$path": "src/StarterGui/UI/Settings"}
+      },
+      
+      "Themes": {
+        "$className": "Folder",
+        "$path": "src/StarterGui/Themes"
+      }
+    },
+    
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": {
+        "AutoJumpEnabled": false,
+        "CameraMaxZoomDistance": 15,
+        "CameraMinZoomDistance": 0.5,
+        "CameraMode": "Classic",
+        "CharacterJumpHeight": 7.2,
+        "CharacterWalkSpeed": 16,
+        "DevComputerCameraMovementMode": "UserChoice",
+        "DevComputerMovementMode": "UserChoice",
+        "DevTouchCameraMovementMode": "UserChoice",
+        "DevTouchMovementMode": "UserChoice",
+        "EnableMouseLockOption": true,
+        "HealthDisplayDistance": 100,
+        "LoadCharacterAppearance": true,
+        "NameDisplayDistance": 100,
+        "UserEmotesEnabled": false
+      },
+      
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "$path": "src/StarterPlayer/StarterCharacterScripts"
+      },
+      
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/StarterPlayer/StarterPlayerScripts",
+        
+        "Controllers": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Controllers"
+        },
+        
+        "UI": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayer/StarterPlayerScripts/UI"
+        },
+        
+        "Modules": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Modules"
+        }
+      }
+    },
+    
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "FilteringEnabled": true,
+        "StreamingEnabled": true,
+        "StreamingTargetRadius": 512,
+        "StreamingMinRadius": 64,
+        "Gravity": 196.2,
+        "FallenPartsDestroyHeight": -500,
+        "AllowThirdPartySales": false
+      },
+      
+      "Maps": {
+        "$className": "Folder",
+        "$path": "maps"
+      }
+    },
+    
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Ambient": [0.05, 0.05, 0.1],
+        "Brightness": 2.5,
+        "EnvironmentDiffuseScale": 0.25,
+        "EnvironmentSpecularScale": 0.25,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.2,
+        "Technology": "ShadowMap",
+        "TimeOfDay": "14:00:00"
+      }
+    },
+    
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "AmbientReverb": "NoReverb",
+        "DistanceFactor": 3.33,
+        "DopplerScale": 1,
+        "RolloffScale": 1,
+        "VolumetricAudio": "Automatic"
+      }
+    },
+    
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": true,
+        "MaxPlayers": 100,
+        "PreferredPlayers": 50,
+        "RespawnTime": 3
+      }
+    },
+    
+    "Teams": {
+      "$className": "Teams"
+    },
+    
+    "TestService": {
+      "$className": "TestService",
+      "$properties": {
+        "AutoRuns": false,
+        "NumberOfPlayers": 0,
+        "Timeout": 10
+      }
+    }
+  }
+}
