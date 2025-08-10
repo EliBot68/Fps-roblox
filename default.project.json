@@ -1,15 +1,19 @@
 {
-  "name": "fps roblox",
+  "name": "Enterprise FPS Roblox",
   "servePort": 34872,
   "globIgnorePaths": [
     "**/*.rbxl",
-    "**/*.rbxlx", 
+    "**/*.rbxlx",
     "**/*.rbxlx.lock",
-    "**/test-*",
     "**/.git",
-    "**/README.md",
     "**/.gitignore",
-    "src/**"
+    "**/node_modules/**",
+    "**/.vscode/**",
+    "**/.idea/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/logs/**",
+    "**/temp/**"
   ],
   "tree": {
     "$className": "DataModel",
@@ -20,7 +24,7 @@
     },
 
     "ReplicatedFirst": {
-      "$className": "ReplicatedFirst", 
+      "$className": "ReplicatedFirst",
       "$path": "ReplicatedFirst"
     },
 
@@ -31,27 +35,68 @@
 
     "ServerStorage": {
       "$className": "ServerStorage",
-      "$path": "ServerStorage"
+      "$path": "ServerStorage",
+      "ProjectRepository": {
+        "$className": "Folder",
+        "$path": "."
+      }
     },
 
     "StarterGui": {
       "$className": "StarterGui",
-      "$path": "StarterGui"
+      "$path": "StarterGui",
+      "$properties": {
+        "ResetPlayerGuiOnSpawn": false,
+        "ScreenOrientation": "LandscapeSensor"
+      }
     },
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
-      "$path": "StarterPlayer"
-    },
-
-    "StarterPack": {
-      "$className": "StarterPack"
+      "$path": "StarterPlayer",
+      "$properties": {
+        "AutoJumpEnabled": false,
+        "CameraMaxZoomDistance": 25,
+        "CameraMinZoomDistance": 0.5,
+        "CameraMode": "Classic",
+        "CharacterJumpHeight": 7.2,
+        "CharacterMaxSlopeAngle": 89,
+        "CharacterWalkSpeed": 16,
+        "DevCameraOcclusionMode": "Zoom",
+        "DevComputerCameraMovementMode": "UserChoice",
+        "DevComputerMovementMode": "UserChoice",
+        "DevTouchCameraMovementMode": "UserChoice",
+        "DevTouchMovementMode": "UserChoice",
+        "EnableMouseLockOption": true,
+        "HealthDisplayDistance": 100,
+        "LoadCharacterAppearance": true,
+        "NameDisplayDistance": 100,
+        "UserEmotesEnabled": true
+      },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "$path": "StarterPlayer/StarterCharacterScripts"
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "StarterPlayer/StarterPlayerScripts"
+      },
+      "EnterprisePlayerScripts": {
+        "$className": "Folder",
+        "$path": "StarterPlayerScripts"
+      }
     },
 
     "Workspace": {
       "$className": "Workspace",
       "$properties": {
-        "FilteringEnabled": true
+        "FilteringEnabled": true,
+        "StreamingEnabled": false,
+        "Gravity": 196.2,
+        "FallenPartsDestroyHeight": -500,
+        "AllowThirdPartySales": false,
+        "SignalBehavior": "Immediate",
+        "TouchesUseCollisionGroups": true
       },
       "Maps": {
         "$className": "Folder",
@@ -61,22 +106,16 @@
         "$className": "Part",
         "$properties": {
           "Anchored": true,
-          "Color": [
-            0.38823,
-            0.37254,
-            0.38823
-          ],
+          "CanCollide": true,
+          "CanQuery": true,
+          "CanTouch": true,
+          "Color": [0.38823, 0.37254, 0.38823],
           "Locked": true,
-          "Position": [
-            0,
-            -10,
-            0
-          ],
-          "Size": [
-            512,
-            20,
-            512
-          ]
+          "Material": "Plastic",
+          "Position": [0, -10, 0],
+          "Size": [512, 20, 512],
+          "TopSurface": "Smooth",
+          "BottomSurface": "Smooth"
         }
       }
     },
@@ -84,22 +123,65 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Ambient": [
-          0,
-          0,
-          0
-        ],
-        "Brightness": 2,
+        "Ambient": [0.1, 0.1, 0.15],
+        "Brightness": 2.5,
+        "ColorShift_Bottom": [0, 0, 0],
+        "ColorShift_Top": [0, 0, 0],
+        "EnvironmentDiffuseScale": 0.3,
+        "EnvironmentSpecularScale": 0.3,
         "GlobalShadows": true,
         "Outlines": false,
-        "Technology": "Voxel"
+        "ShadowSoftness": 0.2,
+        "Technology": "ShadowMap",
+        "TimeOfDay": "14:00:00",
+        "FogEnd": 100000,
+        "FogStart": 0,
+        "GeographicLatitude": 41.733
       }
     },
 
     "SoundService": {
       "$className": "SoundService",
       "$properties": {
-        "RespectFilteringEnabled": true
+        "AmbientReverb": "NoReverb",
+        "DistanceFactor": 3.33,
+        "DopplerScale": 1,
+        "RespectFilteringEnabled": true,
+        "RolloffScale": 1,
+        "VolumetricAudio": "Automatic"
+      }
+    },
+
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": true,
+        "MaxPlayers": 50,
+        "PreferredPlayers": 20,
+        "RespawnTime": 5
+      }
+    },
+
+    "Teams": {
+      "$className": "Teams"
+    },
+
+    "Chat": {
+      "$className": "Chat",
+      "$properties": {
+        "LoadDefaultChat": true
+      }
+    },
+
+    "TestService": {
+      "$className": "TestService",
+      "$properties": {
+        "AutoRuns": false,
+        "IsPhysicsEnvironmentalThrottled": true,
+        "IsSleepAllowed": true,
+        "NumberOfPlayers": 0,
+        "SimulateSecondsLag": 0,
+        "Timeout": 10
       }
     }
   }
