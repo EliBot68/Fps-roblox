@@ -97,6 +97,17 @@ function SecurityValidator.new()
 	-- Initialize validation cache for performance
 	self.validationCache = {}
 	
+	-- Initialize metrics integration
+	self.metricsExporter = nil
+	spawn(function()
+		-- Wait for MetricsExporter to be available
+		while not self.metricsExporter do
+			wait(0.1)
+			local ServiceLocator = require(script.Parent.ServiceLocator)
+			self.metricsExporter = ServiceLocator.GetService("MetricsExporter")
+		end
+	end)
+	
 	-- Performance metrics
 	self.metrics = {
 		totalValidations = 0,
@@ -168,13 +179,36 @@ function SecurityValidator:ValidateRemoteCall(player: Player, remoteName: string
 	-- Sanitize and prepare data
 	result.sanitizedData = validationResult.sanitizedData
 	
-	-- Update metrics
+	-- Update internal metrics
 	if result.isValid then
 		self.metrics.successfulValidations += 1
+		
+		-- Export to Prometheus metrics
+		if self.metricsExporter then
+			self.metricsExporter.IncrementCounter("security_validation_requests", {
+				remote_event = remoteName,
+				status = "success"
+			})
+		end
+	else
+		-- Export failed validation metrics
+		if self.metricsExporter then
+			self.metricsExporter.IncrementCounter("security_validation_requests", {
+				remote_event = remoteName,
+				status = "failed"
+			})
+		end
 	end
 	
 	local validationTime = tick() - startTime
 	self.metrics.averageValidationTime = ((self.metrics.averageValidationTime * (self.metrics.totalValidations - 1)) + validationTime) / self.metrics.totalValidations
+	
+	-- Export validation duration to Prometheus
+	if self.metricsExporter then
+		self.metricsExporter.ObserveHistogram("security_validation_duration", validationTime * 1000, {
+			remote_event = remoteName
+		})
+	end
 	
 	return result
 end
@@ -318,6 +352,13 @@ function SecurityValidator:CheckRateLimit(player: Player, remoteName: string): b
 	
 	-- Check if limit exceeded
 	if #rateLimitInfo.requests >= limits.maxRequests then
+		-- Export rate limit hit to Prometheus
+		if self.metricsExporter then
+			self.metricsExporter.IncrementCounter("security_rate_limit_hits", {
+				remote_event = remoteName,
+				player_id = tostring(userId)
+			})
+		end
 		return false
 	end
 	
@@ -575,8 +616,26 @@ function SecurityValidator:LogSecurityViolation(player: Player, remoteName: stri
 	end
 	table.insert(self.threatHistory[player.UserId], threat)
 	
-	-- Update metrics
+	-- Update internal metrics
 	self.metrics.threatsDetected += 1
+	
+	-- Export threat detection to Prometheus metrics
+	if self.metricsExporter then
+		local severityLevel = "low"
+		if severity >= SECURITY_CONFIG.threatLevels.CRITICAL then
+			severityLevel = "critical"
+		elseif severity >= SECURITY_CONFIG.threatLevels.HIGH then
+			severityLevel = "high"
+		elseif severity >= SECURITY_CONFIG.threatLevels.MEDIUM then
+			severityLevel = "medium"
+		end
+		
+		self.metricsExporter.IncrementCounter("security_threats_detected", {
+			severity = severityLevel,
+			threat_type = threatType,
+			player_id = tostring(player.UserId)
+		})
+	end
 	
 	-- Log with appropriate severity
 	if self.logger then

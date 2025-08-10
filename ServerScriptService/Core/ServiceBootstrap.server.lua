@@ -16,6 +16,22 @@ local ServiceBootstrap = {}
 function ServiceBootstrap.RegisterServices()
 	Logging.Info("ServiceBootstrap", "🏢 Registering enterprise services...")
 	
+	-- Register MetricsExporter (Critical Priority - No Dependencies)
+	ServiceLocator.Register("MetricsExporter", {
+		factory = function(deps)
+			local MetricsExporter = require(ReplicatedStorage.Shared.MetricsExporter)
+			MetricsExporter.Initialize()
+			return MetricsExporter
+		end,
+		singleton = true,
+		lazy = false, -- Load immediately for metrics collection
+		priority = 10,
+		tags = {"metrics", "monitoring", "critical"},
+		healthCheck = function(instance)
+			return instance and type(instance.IncrementCounter) == "function" and instance.HealthCheck()
+		end
+	})
+	
 	-- Register WeaponServer (High Priority - No Dependencies)
 	ServiceLocator.Register("WeaponServer", {
 		factory = function(deps)

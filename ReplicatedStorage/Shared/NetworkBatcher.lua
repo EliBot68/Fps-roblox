@@ -68,6 +68,9 @@ local bandwidthStats = {
 -- Retry queue for failed sends
 local retryQueue = {}
 
+-- Metrics integration
+local metricsExporter = nil
+
 -- Global batched remote events
 local BatchedEventsRemote = Instance.new("RemoteEvent")
 BatchedEventsRemote.Name = "BatchedEvents"
@@ -83,6 +86,14 @@ function NetworkBatcher.Initialize()
 	ServiceLocator.RegisterService("NetworkBatcher", NetworkBatcher, {
 		"Logging"  -- Dependency on logging service
 	})
+	
+	-- Initialize metrics integration
+	spawn(function()
+		while not metricsExporter do
+			wait(0.1)
+			metricsExporter = ServiceLocator.GetService("MetricsExporter")
+		end
+	end)
 	
 	-- Start priority-based batch processors
 	RunService.Heartbeat:Connect(function()
@@ -101,6 +112,12 @@ function NetworkBatcher.Initialize()
 		
 		-- Update bandwidth monitoring
 		NetworkBatcher.UpdateBandwidthStats()
+		
+		-- Export queue metrics every second
+		if currentTime - (NetworkBatcher.lastMetricsExport or 0) >= 1 then
+			NetworkBatcher.ExportQueueMetrics()
+			NetworkBatcher.lastMetricsExport = currentTime
+		end
 	end)
 	
 	-- Set up retry event handler
@@ -153,6 +170,22 @@ function NetworkBatcher.QueueEvent(eventType: string, targetPlayer: Player?, dat
 	}
 	
 	table.insert(queue, eventData)
+	
+	-- Export metrics
+	if metricsExporter then
+		local priorityName = "Low"
+		if priority == Priority.Critical then
+			priorityName = "Critical"
+		elseif priority == Priority.Normal then
+			priorityName = "Normal"
+		end
+		
+		metricsExporter.IncrementCounter("network_events_batched", {
+			priority = priorityName,
+			event_type = eventType
+		})
+	end
+	
 	return true
 end
 
@@ -435,6 +468,51 @@ function NetworkBatcher.HealthCheck(): {status: string, issues: {string}}
 	
 	local status = #issues == 0 and "healthy" or "warning"
 	return {status = status, issues = issues}
+end
+
+-- Export queue size metrics to Prometheus
+function NetworkBatcher.ExportQueueMetrics()
+	if not metricsExporter then return end
+	
+	-- Export queue sizes by priority
+	for priority, queue in pairs(eventQueues) do
+		local priorityName = "Low"
+		if priority == Priority.Critical then
+			priorityName = "Critical"
+		elseif priority == Priority.Normal then
+			priorityName = "Normal"
+		end
+		
+		metricsExporter.SetGauge("network_queue_size", #queue, {
+			priority = priorityName
+		})
+	end
+	
+	-- Export retry queue size
+	metricsExporter.SetGauge("network_queue_size", #retryQueue, {
+		priority = "Retry"
+	})
+	
+	-- Export bandwidth metrics
+	local currentTime = tick()
+	local timeDiff = currentTime - bandwidthStats.startTime
+	if timeDiff > 0 then
+		local bytesPerSecond = bandwidthStats.bytesSent / timeDiff
+		local messagesPerSecond = bandwidthStats.messagesSent / timeDiff
+		
+		metricsExporter.SetGauge("network_bandwidth_bytes", bytesPerSecond, {
+			direction = "outbound",
+			player_id = "server"
+		})
+		
+		-- Export compression ratio if available
+		if bandwidthStats.originalBytes and bandwidthStats.originalBytes > 0 then
+			local compressionRatio = bandwidthStats.bytesSent / bandwidthStats.originalBytes
+			metricsExporter.SetGauge("network_compression_ratio", compressionRatio, {
+				event_type = "all"
+			})
+		end
+	end
 end
 
 return NetworkBatcher
