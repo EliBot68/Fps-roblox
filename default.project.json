@@ -121,8 +121,6 @@
       "$properties": {
         "Ambient": [0.1, 0.1, 0.15],
         "Brightness": 2.5,
-        "ColorShift_Bottom": [0, 0, 0],
-        "ColorShift_Top": [0, 0, 0],
         "EnvironmentDiffuseScale": 0.3,
         "EnvironmentSpecularScale": 0.3,
         "GlobalShadows": true,
@@ -132,7 +130,9 @@
         "TimeOfDay": "14:00:00",
         "FogEnd": 100000,
         "FogStart": 0,
-        "GeographicLatitude": 41.733
+        "GeographicLatitude": 41.733,
+        "ColorShift_Bottom": [0, 0, 0],
+        "ColorShift_Top": [0, 0, 0]
       }
     },
 
@@ -147,7 +147,7 @@
         "VolumetricAudio": "Automatic"
       }
     },
-
+    
     "Players": {
       "$className": "Players",
       "$properties": {
@@ -157,18 +157,18 @@
         "RespawnTime": 5
       }
     },
-
+    
     "Teams": {
       "$className": "Teams"
     },
-
+    
     "Chat": {
       "$className": "Chat",
       "$properties": {
         "LoadDefaultChat": true
       }
     },
-
+    
     "TestService": {
       "$className": "TestService",
       "$properties": {
