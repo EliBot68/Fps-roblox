@@ -35,11 +35,7 @@
 
     "ServerStorage": {
       "$className": "ServerStorage",
-      "$path": "ServerStorage",
-      "ProjectRepository": {
-        "$className": "Folder",
-        "$path": "."
-      }
+      "$path": "ServerStorage"
     },
 
     "StarterGui": {
