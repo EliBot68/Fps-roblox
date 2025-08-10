@@ -190,6 +190,23 @@ function ServiceBootstrap.RegisterServices()
 		tags = {"network", "performance", "shared"}
 	})
 	
+	-- Register NetworkManager (High Priority - Depends on NetworkBatcher and Logging)
+	ServiceLocator.Register("NetworkManager", {
+		factory = function(deps)
+			local NetworkManager = require(ServerScriptService.Core.NetworkManager)
+			NetworkManager.Initialize()
+			return NetworkManager
+		end,
+		singleton = true,
+		dependencies = {"NetworkBatcher", "Logging"},
+		lazy = false, -- Critical for network optimization
+		priority = 9,
+		tags = {"network", "server", "optimization", "critical"},
+		healthCheck = function(instance)
+			return instance and type(instance.GetNetworkStats) == "function"
+		end
+	})
+	
 	ServiceLocator.Register("ObjectPool", {
 		factory = function(deps)
 			return require(ReplicatedStorage.Shared.ObjectPool)
