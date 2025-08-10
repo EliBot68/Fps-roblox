@@ -9,6 +9,9 @@
 		pool:Return(obj)
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Logging = require(ReplicatedStorage.Shared.Logging)
+
 local ObjectPool = {}
 
 -- Pool configuration
@@ -16,144 +19,218 @@ local DEFAULT_POOL_SIZE = 50
 local MAX_POOL_SIZE = 200
 local CLEANUP_INTERVAL = 60 -- Clean up every 60 seconds
 
+-- Add enhanced configuration constants
+local MIN_POOL_SIZE = 10
+local RESIZE_CHECK_INTERVAL = 15 -- seconds
+local LEAK_THRESHOLD = 30 -- seconds an object can stay checked out before flagged
+local RESIZE_GROW_FACTOR = 1.5
+local RESIZE_SHRINK_FACTOR = 0.5
+
 -- Global pools registry
 local activePools = {}
 
 export type Pool = {
 	objects: {any},
 	inUse: {[any]: boolean},
+	inUseTimestamps: {[any]: number},
 	createFunction: () -> any,
 	resetFunction: ((any) -> ())?,
 	maxSize: number,
+	minSize: number,
 	totalCreated: number,
 	totalReused: number,
-	lastCleanup: number
+	peakInUse: number,
+	poolName: string,
+	autoResize: boolean,
+	lastCleanup: number,
+	lastResizeCheck: number,
+	leakThreshold: number
 }
 
--- Create a new object pool
-function ObjectPool.new(poolName: string, createFunc: () -> any, resetFunc: ((any) -> ())?): Pool
-	local pool = {
+-- Forward declaration for MemoryManager integration (optional)
+local memoryManagerSafe
+
+-- Utility: safe call into MemoryManager if present
+local function SafeRegisterPool(poolName: string, pool: Pool)
+	if not memoryManagerSafe then
+		local ok, mm = pcall(function()
+			return require(game:GetService("ReplicatedStorage").Shared.MemoryManager)
+		end)
+		if ok and type(mm) == "table" then
+			memoryManagerSafe = mm
+		else
+			memoryManagerSafe = false
+		end
+	end
+	if memoryManagerSafe and memoryManagerSafe.RegisterPool then
+		pcall(function()
+			memoryManagerSafe.RegisterPool(poolName, pool)
+		end)
+	end
+end
+
+-- Create a new object pool (enhanced)
+function ObjectPool.new(poolName: string, createFunc: () -> any, resetFunc: ((any) -> ())?, config: {[string]: any}?): Pool
+	assert(type(poolName) == "string" and poolName ~= "", "Pool name required")
+	local cfg = config or {}
+	local initialMax = cfg.maxSize or MAX_POOL_SIZE
+	local pool: Pool = {
 		objects = {},
 		inUse = {},
+		inUseTimestamps = {},
 		createFunction = createFunc,
 		resetFunction = resetFunc,
-		maxSize = DEFAULT_POOL_SIZE,
+		maxSize = initialMax,
+		minSize = cfg.minSize or MIN_POOL_SIZE,
 		totalCreated = 0,
 		totalReused = 0,
-		lastCleanup = os.clock()
+		peakInUse = 0,
+		poolName = poolName,
+		autoResize = if cfg.autoResize == nil then true else cfg.autoResize,
+		lastCleanup = os.clock(),
+		lastResizeCheck = os.clock(),
+		leakThreshold = cfg.leakThreshold or LEAK_THRESHOLD
 	}
-	
-	-- Pre-populate pool
-	for i = 1, math.min(10, DEFAULT_POOL_SIZE) do
-		local obj = createFunc()
-		table.insert(pool.objects, obj)
+	-- Pre-populate baseline
+	local prepopulate = math.min(cfg.prepopulate or 10, pool.maxSize)
+	for i = 1, prepopulate do
+		local ok, obj = pcall(createFunc)
+		if ok and obj then
+			pool.totalCreated += 1
+			pool.objects[i] = obj
+		end
 	end
-	
 	activePools[poolName] = pool
+	SafeRegisterPool(poolName, pool)
 	return pool
 end
 
--- Get an object from the pool
+-- Get an object (enhanced tracking)
 function ObjectPool.Get(pool: Pool): any
 	local obj
-	
-	-- Try to reuse from pool first
 	if #pool.objects > 0 then
 		obj = table.remove(pool.objects)
-		pool.totalReused = pool.totalReused + 1
+		pool.totalReused += 1
 	else
-		-- Create new object if pool is empty
-		obj = pool.createFunction()
-		pool.totalCreated = pool.totalCreated + 1
+		if (pool.totalCreated - pool.totalReused) >= pool.maxSize then
+			-- Hard cap reached; create anyway but warn (temporary overflow)
+			warn(string.format("[ObjectPool] Pool '%s' at max size (%d). Creating overflow instance.", pool.poolName, pool.maxSize))
+		end
+		local ok, created = pcall(pool.createFunction)
+		if ok and created then
+			obj = created
+			pool.totalCreated += 1
+		else
+			error("[ObjectPool] Failed to create pooled object: " .. tostring(created))
+		end
 	end
-	
-	-- Mark as in use
 	pool.inUse[obj] = true
+	pool.inUseTimestamps[obj] = os.clock()
+	-- Update peak usage
+	local currentInUse = 0
+	for _ in pairs(pool.inUse) do currentInUse += 1 end
+	if currentInUse > pool.peakInUse then
+		pool.peakInUse = currentInUse
+	end
 	return obj
 end
 
--- Return an object to the pool
+-- Return object (unchanged parts retained)
 function ObjectPool.Return(pool: Pool, obj: any): boolean
-	-- Validate object is from this pool
 	if not pool.inUse[obj] then
-		warn("[ObjectPool] Attempted to return object not from this pool")
+		warn("[ObjectPool] Attempted to return object not from this pool", pool.poolName)
 		return false
 	end
-	
-	-- Remove from in-use tracking
 	pool.inUse[obj] = nil
-	
-	-- Reset object if reset function provided
+	pool.inUseTimestamps[obj] = nil
 	if pool.resetFunction then
-		local success, err = pcall(pool.resetFunction, obj)
-		if not success then
-			warn("[ObjectPool] Reset function failed:", err)
-			-- Don't return to pool if reset failed
-			obj:Destroy()
+		local ok, err = pcall(pool.resetFunction, obj)
+		if not ok then
+			warn("[ObjectPool] Reset failed", err)
+			if obj.Destroy then pcall(function() obj:Destroy() end) end
 			return false
 		end
 	end
-	
-	-- Return to pool if not full
 	if #pool.objects < pool.maxSize then
 		table.insert(pool.objects, obj)
 		return true
 	else
-		-- Pool is full, destroy excess object
-		obj:Destroy()
+		if obj.Destroy then pcall(function() obj:Destroy() end) end
 		return false
 	end
 end
 
--- Force return all objects (for cleanup)
-function ObjectPool.ReturnAll(pool: Pool): number
-	local returned = 0
-	
-	for obj, _ in pairs(pool.inUse) do
-		if ObjectPool.Return(pool, obj) then
-			returned = returned + 1
+-- Efficiency & leak aware stats
+function ObjectPool.GetStats(pool: Pool): {available: number, inUse: number, totalCreated: number, totalReused: number, efficiency: number, peakInUse: number, maxSize: number, leaks: number}
+	local inUseCount = 0
+	local now = os.clock()
+	local leaks = 0
+	for o, _ in pairs(pool.inUse) do
+		inUseCount += 1
+		local t = pool.inUseTimestamps[o]
+		if t and (now - t) > pool.leakThreshold then
+			leaks += 1
 		end
 	end
-	
-	return returned
-end
-
--- Get pool statistics
-function ObjectPool.GetStats(pool: Pool): {available: number, inUse: number, totalCreated: number, totalReused: number, efficiency: number}
-	local inUseCount = 0
-	for _, _ in pairs(pool.inUse) do
-		inUseCount = inUseCount + 1
-	end
-	
 	local efficiency = 0
-	if pool.totalCreated > 0 then
+	if (pool.totalCreated + pool.totalReused) > 0 then
 		efficiency = pool.totalReused / (pool.totalCreated + pool.totalReused)
 	end
-	
 	return {
 		available = #pool.objects,
 		inUse = inUseCount,
 		totalCreated = pool.totalCreated,
 		totalReused = pool.totalReused,
-		efficiency = math.floor(efficiency * 100) / 100
+		efficiency = math.floor(efficiency * 10000) / 10000,
+		peakInUse = pool.peakInUse,
+		maxSize = pool.maxSize,
+		leaks = leaks
 	}
+end
+
+-- Auto-resize logic with configurable parameters
+local function EvaluateResize(pool: Pool)
+	if not pool.autoResize then return end
+	local now = os.clock()
+	if (now - pool.lastResizeCheck) < RESIZE_CHECK_INTERVAL then return end
+	pool.lastResizeCheck = now
+	
+	local stats = ObjectPool.GetStats(pool)
+	local oldMaxSize = pool.maxSize
+	
+	-- Grow: if peak usage near capacity
+	if stats.peakInUse >= math.floor(pool.maxSize * 0.9) and pool.maxSize < MAX_POOL_SIZE then
+		pool.maxSize = math.min(MAX_POOL_SIZE, math.floor(pool.maxSize * RESIZE_GROW_FACTOR))
+		Logging.Info("ObjectPool", string.format("Auto-grow '%s' %d -> %d (peak: %d)", 
+			pool.poolName, oldMaxSize, pool.maxSize, stats.peakInUse))
+		-- Don't reset peak immediately - use sliding window
+		pool.peakInUse = math.floor(stats.peakInUse * 0.8)
+	end
+	
+	-- Shrink: low utilization & many available
+	local utilization = stats.inUse / math.max(1, pool.maxSize)
+	if utilization < 0.25 and #pool.objects > (pool.maxSize * 0.75) and pool.maxSize > pool.minSize then
+		pool.maxSize = math.max(pool.minSize, math.floor(pool.maxSize * RESIZE_SHRINK_FACTOR))
+		Logging.Info("ObjectPool", string.format("Auto-shrink '%s' %d -> %d (util: %.2f)", 
+			pool.poolName, oldMaxSize, pool.maxSize, utilization))
+	end
 end
 
 -- Clean up unused objects in pool
 function ObjectPool.Cleanup(pool: Pool): number
+	EvaluateResize(pool)
 	local currentTime = os.clock()
 	if currentTime - pool.lastCleanup < CLEANUP_INTERVAL then
 		return 0
 	end
-	
 	local destroyed = 0
-	local targetSize = math.max(10, math.floor(pool.maxSize * 0.3))
+	local targetSize = math.max(pool.minSize, math.floor(pool.maxSize * 0.3))
 	
 	-- Keep only target number of objects
 	while #pool.objects > targetSize do
 		local obj = table.remove(pool.objects)
-		obj:Destroy()
-		destroyed = destroyed + 1
+		if obj and obj.Destroy then pcall(function() obj:Destroy() end) end
+		destroyed += 1
 	end
 	
 	pool.lastCleanup = currentTime
@@ -182,6 +259,26 @@ function ObjectPool.GetAllStats(): {[string]: any}
 	return stats
 end
 
+-- Force return all objects (for cleanup)
+function ObjectPool.ReturnAll(pool: Pool): number
+	local returned = 0
+	local toReturn = {}
+	
+	-- Collect all in-use objects first (avoid iterator invalidation)
+	for obj, _ in pairs(pool.inUse) do
+		table.insert(toReturn, obj)
+	end
+	
+	-- Return each object
+	for _, obj in ipairs(toReturn) do
+		if ObjectPool.Return(pool, obj) then
+			returned = returned + 1
+		end
+	end
+	
+	return returned
+end
+
 -- Destroy a pool completely
 function ObjectPool.DestroyPool(poolName: string): boolean
 	local pool = activePools[poolName]
@@ -192,7 +289,9 @@ function ObjectPool.DestroyPool(poolName: string): boolean
 	
 	-- Destroy all pooled objects
 	for _, obj in ipairs(pool.objects) do
-		obj:Destroy()
+		if obj and obj.Destroy then
+			pcall(function() obj:Destroy() end)
+		end
 	end
 	
 	-- Remove from registry
