@@ -1,9 +1,9 @@
 {
-  "name": "Enterprise FPS Roblox",
+  "name": "Enterprise FPS Roblox - Production Ready",
   "servePort": 34872,
   "globIgnorePaths": [
     "**/*.rbxl",
-    "**/*.rbxlx",
+    "**/*.rbxlx", 
     "**/*.rbxlx.lock",
     "**/.git",
     "**/.gitignore",
@@ -13,43 +13,98 @@
     "**/dist/**",
     "**/build/**",
     "**/logs/**",
-    "**/temp/**"
+    "**/temp/**",
+    "**/coverage/**",
+    "**/.nyc_output/**",
+    "**/docs/generated/**"
   ],
   "tree": {
     "$className": "DataModel",
 
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "$path": "ReplicatedStorage"
+      "$path": "src/ReplicatedStorage",
+      "RemoteEvents": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/RemoteEvents"
+      },
+      "Shared": {
+        "$className": "Folder", 
+        "$path": "src/ReplicatedStorage/Shared"
+      },
+      "Assets": {
+        "$className": "Folder",
+        "$path": "assets"
+      },
+      "Localization": {
+        "$className": "Folder",
+        "$path": "src/ReplicatedStorage/Localization"
+      }
     },
 
     "ReplicatedFirst": {
       "$className": "ReplicatedFirst",
-      "$path": "ReplicatedFirst"
+      "$path": "src/ReplicatedFirst"
     },
 
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "$path": "ServerScriptService"
+      "$path": "src/ServerScriptService",
+      "Core": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Core"
+      },
+      "Systems": {
+        "$className": "Folder", 
+        "$path": "src/ServerScriptService/Systems"
+      },
+      "Economy": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Economy"
+      },
+      "Analytics": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Analytics"
+      },
+      "Security": {
+        "$className": "Folder",
+        "$path": "src/ServerScriptService/Security"
+      }
     },
 
     "ServerStorage": {
       "$className": "ServerStorage",
-      "$path": "ServerStorage"
+      "$path": "src/ServerStorage",
+      "Data": {
+        "$className": "Folder",
+        "$path": "src/ServerStorage/Data"
+      },
+      "Templates": {
+        "$className": "Folder",
+        "$path": "src/ServerStorage/Templates"
+      }
     },
 
     "StarterGui": {
       "$className": "StarterGui",
-      "$path": "StarterGui",
+      "$path": "src/StarterGui",
       "$properties": {
         "ResetPlayerGuiOnSpawn": false,
         "ScreenOrientation": "LandscapeSensor"
+      },
+      "Interfaces": {
+        "$className": "Folder",
+        "$path": "src/StarterGui/Interfaces"
+      },
+      "Themes": {
+        "$className": "Folder",
+        "$path": "src/StarterGui/Themes"
       }
     },
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
-      "$path": "StarterPlayer",
+      "$path": "src/StarterPlayer",
       "$properties": {
         "AutoJumpEnabled": false,
         "CameraMaxZoomDistance": 25,
@@ -71,15 +126,19 @@
       },
       "StarterCharacterScripts": {
         "$className": "StarterCharacterScripts",
-        "$path": "StarterPlayer/StarterCharacterScripts"
+        "$path": "src/StarterPlayer/StarterCharacterScripts"
       },
       "StarterPlayerScripts": {
-        "$className": "StarterPlayerScripts",
-        "$path": "StarterPlayer/StarterPlayerScripts"
-      },
-      "EnterprisePlayerScripts": {
-        "$className": "Folder",
-        "$path": "StarterPlayerScripts"
+        "$className": "StarterPlayerScripts", 
+        "$path": "src/StarterPlayer/StarterPlayerScripts",
+        "Controllers": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayer/StarterPlayerScripts/Controllers"
+        },
+        "UI": {
+          "$className": "Folder",
+          "$path": "src/StarterPlayer/StarterPlayerScripts/UI"
+        }
       }
     },
 
@@ -87,7 +146,9 @@
       "$className": "Workspace",
       "$properties": {
         "FilteringEnabled": true,
-        "StreamingEnabled": false,
+        "StreamingEnabled": true,
+        "StreamingTargetRadius": 512,
+        "StreamingMinRadius": 64,
         "Gravity": 196.2,
         "FallenPartsDestroyHeight": -500,
         "AllowThirdPartySales": false,
@@ -98,21 +159,9 @@
         "$className": "Folder",
         "$path": "maps"
       },
-      "Baseplate": {
-        "$className": "Part",
-        "$properties": {
-          "Anchored": true,
-          "CanCollide": true,
-          "CanQuery": true,
-          "CanTouch": true,
-          "Color": [0.38823, 0.37254, 0.38823],
-          "Locked": true,
-          "Material": "Plastic",
-          "Position": [0, -10, 0],
-          "Size": [512, 20, 512],
-          "TopSurface": "Smooth",
-          "BottomSurface": "Smooth"
-        }
+      "Lighting": {
+        "$className": "Folder",
+        "$path": "lighting"
       }
     },
 
@@ -152,9 +201,9 @@
       "$className": "Players",
       "$properties": {
         "CharacterAutoLoads": true,
-        "MaxPlayers": 50,
-        "PreferredPlayers": 20,
-        "RespawnTime": 5
+        "MaxPlayers": 100,
+        "PreferredPlayers": 50,
+        "RespawnTime": 3
       }
     },
     
