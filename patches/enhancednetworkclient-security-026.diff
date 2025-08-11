@@ -1,0 +1,91 @@
+--- a/StarterPlayerScripts/EnhancedNetworkClient.client.lua
++++ b/StarterPlayerScripts/EnhancedNetworkClient.client.lua
+@@ -1,5 +1,15 @@
+ --[[
+ 	EnhancedNetworkClient.client.lua
+ 	Advanced client-side network management with circuit breaker pattern
++
++-- Security Enhancement: Circuit breaker security validation
++local SECURITY_VALIDATION = {
++	maxCircuitBreakers = 50,
++	circuitBreakerTimeoutMin = 10000, -- 10 seconds minimum
++	circuitBreakerTimeoutMax = 300000, -- 5 minutes maximum
++	maxHalfOpenCalls = 10,
++	suspiciousFailureThreshold = 20
++}
++local securityViolations = 0
+ 	
+ 	Features:
+ 	- Exponential backoff with jitter for retry logic
+@@ -27,6 +37,15 @@ local CLIENT_CONFIG = {
+ 	COMPRESSION_THRESHOLD = 1024,   -- Decompress payloads > 1KB
+ 	STATS_UPDATE_INTERVAL = 5,     -- Update local stats every 5 seconds
+ 	
++	-- Security: Validate circuit breaker configuration
++	CIRCUIT_BREAKER = EnhancedNetworkClient.ValidateCircuitBreakerConfig({
++		FAILURE_THRESHOLD = math.clamp(5, 1, 20),
++		SUCCESS_THRESHOLD = math.clamp(3, 1, 10),
++		TIMEOUT = math.clamp(60000, SECURITY_VALIDATION.circuitBreakerTimeoutMin, SECURITY_VALIDATION.circuitBreakerTimeoutMax),
++		HALF_OPEN_MAX_CALLS = math.clamp(3, 1, SECURITY_VALIDATION.maxHalfOpenCalls)
++	}),
++	
++	-- Original circuit breaker configuration (for reference)
++	CIRCUIT_BREAKER_ORIGINAL = {
+ 		FAILURE_THRESHOLD = 5,      -- Open circuit after 5 failures
+ 		SUCCESS_THRESHOLD = 3,      -- Close circuit after 3 successes
+ 		TIMEOUT = 60000,           -- Circuit breaker timeout (60 seconds)
+@@ -116,6 +135,33 @@ function EnhancedNetworkClient.Initialize()
+ 		print("[EnhancedNetworkClient] ✓ Enhanced client network management initialized")
+ 	end
+ end
++
++-- Security: Validate circuit breaker configuration
++function EnhancedNetworkClient.ValidateCircuitBreakerConfig(config: {[string]: any}): {[string]: any}
++	local validatedConfig = {}
++	
++	-- Validate and clamp failure threshold
++	validatedConfig.FAILURE_THRESHOLD = math.clamp(config.FAILURE_THRESHOLD or 5, 1, 20)
++	
++	-- Validate and clamp success threshold
++	validatedConfig.SUCCESS_THRESHOLD = math.clamp(config.SUCCESS_THRESHOLD or 3, 1, 10)
++	
++	-- Validate and clamp timeout
++	validatedConfig.TIMEOUT = math.clamp(
++		config.TIMEOUT or 60000, 
++		SECURITY_VALIDATION.circuitBreakerTimeoutMin, 
++		SECURITY_VALIDATION.circuitBreakerTimeoutMax
++	)
++	
++	-- Validate and clamp half-open max calls
++	validatedConfig.HALF_OPEN_MAX_CALLS = math.clamp(
++		config.HALF_OPEN_MAX_CALLS or 3, 
++		1, 
++		SECURITY_VALIDATION.maxHalfOpenCalls
++	)
++	
++	return validatedConfig
++end
++
++-- Security: Monitor circuit breaker security violations
++function EnhancedNetworkClient.CheckCircuitBreakerSecurity(): boolean
++	-- Check for excessive circuit breakers
++	if #circuitBreakers > SECURITY_VALIDATION.maxCircuitBreakers then
++		securityViolations = securityViolations + 1
++		warn("[EnhancedNetworkClient] Too many circuit breakers detected")
++		return false
++	end
++	
++	-- Check for suspicious failure patterns
++	local totalFailures = 0
++	for _, stats in pairs(clientStats.retryStats) do
++		totalFailures = totalFailures + stats.failures
++	end
++	
++	if totalFailures > SECURITY_VALIDATION.suspiciousFailureThreshold then
++		securityViolations = securityViolations + 1
++		warn("[EnhancedNetworkClient] Suspicious failure pattern detected")
++		return false
++	end
++	
++	return true
++end

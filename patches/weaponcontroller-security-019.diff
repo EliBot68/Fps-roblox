@@ -1,0 +1,72 @@
+--- a/src/StarterPlayer/StarterPlayerScripts/Controllers/WeaponController.lua
++++ b/src/StarterPlayer/StarterPlayerScripts/Controllers/WeaponController.lua
+@@ -150,6 +150,15 @@ function WeaponController.FireWeapon()
+ 	-- Get target position
+ 	local targetPosition = WeaponController.GetTargetPosition()
+ 	
++	-- Security: Validate target position is reasonable
++	if not targetPosition or targetPosition.Magnitude > 10000 then
++		warn("[WeaponController] Invalid target position:", targetPosition)
++		return
++	end
++	
++	-- Security: Rate limiting check (client-side pre-validation)
++	if currentTime - lastFireTime < 0.05 then -- Minimum 50ms between shots
++		return
++	end
++	
+ 	-- Client prediction - immediate visual feedback
+ 	WeaponController.PredictShot(weapon, targetPosition)
+ 	
+@@ -157,6 +166,13 @@ function WeaponController.FireWeapon()
+ 	local result = fireWeaponRemote:InvokeServer(weapon.config.id, targetPosition, currentTime)
+ 	
+ 	-- Handle server response
++	if type(result) ~= "table" then
++		warn("[WeaponController] Invalid server response type")
++		WeaponController.CorrectPrediction("invalid_response")
++		return
++	end
++	
+ 	if result.success then
+ 		-- Server confirmed hit
+ 		if result.hitTarget then
+@@ -324,6 +340,12 @@ end
+ -- Switch to weapon slot
+ function WeaponController.SwitchWeapon(slot: number)
+ 	if slot < 1 or slot > 3 or slot == activeSlot then return end
++	
++	-- Security: Validate slot number to prevent array manipulation
++	if type(slot) ~= "number" or slot ~= math.floor(slot) then
++		warn("[WeaponController] Invalid weapon slot:", slot)
++		return
++	end
+ 	
+ 	local weapon = equippedWeapons[slot]
+ 	if not weapon then return end
+@@ -352,6 +374,12 @@ function WeaponController.UpdateCrosshair()
+ 	local weapon = equippedWeapons[activeSlot]
+ 	if weapon then
+ 		local baseSpread = (1 - weapon.config.stats.accuracy) * 0.5
++		
++		-- Security: Clamp accuracy to prevent negative values
++		if weapon.config.stats.accuracy < 0 or weapon.config.stats.accuracy > 1 then
++			warn("[WeaponController] Invalid weapon accuracy:", weapon.config.stats.accuracy)
++			weapon.config.stats.accuracy = math.clamp(weapon.config.stats.accuracy, 0, 1)
++		end
++		
+ 		local totalSpread = baseSpread + crosshairSpread
+ 		
+ 		-- Apply to UI crosshair
+@@ -393,6 +421,13 @@ end
+ -- Equip weapon in slot
+ function WeaponController.EquipWeapon(weaponInstance: WeaponInstance, slot: number)
++	-- Security: Validate weapon instance structure
++	if type(weaponInstance) ~= "table" or not weaponInstance.config then
++		warn("[WeaponController] Invalid weapon instance")
++		return
++	end
++	
+ 	equippedWeapons[slot] = weaponInstance
+ 	
+ 	if slot == activeSlot then

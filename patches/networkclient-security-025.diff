@@ -1,0 +1,98 @@
+--- a/StarterPlayerScripts/NetworkClient.client.lua
++++ b/StarterPlayerScripts/NetworkClient.client.lua
+@@ -1,5 +1,13 @@
+ --[[
+ 	NetworkClient.client.lua
+ 	Enterprise client-side network management for batched event handling
++
++-- Security Enhancement: Add rate limiting and payload validation
++local SECURITY_CONFIG = {
++	maxEventsPerSecond = 100,
++	maxBatchSize = 50,
++	maxPayloadSize = 65536, -- 64KB limit
++	suspiciousBatchThreshold = 10
++}
++local eventRateTracker = {}
++local suspiciousBatches = 0
+ 	
+ 	Features:
+ 	- Receive and process batched events from server
+@@ -81,6 +89,21 @@ end
+ -- Handle batched events from server
+ function NetworkClient.HandleBatchedEvents(batch: {[string]: any})
+ 	if not batch or type(batch) ~= "table" then
++		suspiciousBatches = suspiciousBatches + 1
+ 		warn("[NetworkClient] Invalid batch received")
+ 		return
+ 	end
++	
++	-- Security: Validate batch structure and size
++	if not NetworkClient.ValidateBatch(batch) then
++		suspiciousBatches = suspiciousBatches + 1
++		warn("[NetworkClient] Suspicious batch rejected")
++		return
++	end
++	
++	-- Security: Rate limiting on batch processing
++	if not NetworkClient.CheckBatchRateLimit() then
++		warn("[NetworkClient] Batch rate limit exceeded")
++		return
++	end
+ 	
+ 	local startTime = tick()
+@@ -190,6 +213,53 @@ function NetworkClient.UpdatePingStats(rtt: number)
+ 	end
+ end
+ 
++-- Security: Validate incoming batch
++function NetworkClient.ValidateBatch(batch: {[string]: any}): boolean
++	-- Check batch size
++	if batch.events and #batch.events > SECURITY_CONFIG.maxBatchSize then
++		return false
++	end
++	
++	-- Validate payload size
++	local estimatedSize = #HttpService:JSONEncode(batch)
++	if estimatedSize > SECURITY_CONFIG.maxPayloadSize then
++		return false
++	end
++	
++	-- Validate structure
++	if batch.events then
++		for _, event in ipairs(batch.events) do
++			if type(event) ~= "table" or not event.eventType then
++				return false
++			end
++			
++			-- Validate event type string
++			if type(event.eventType) ~= "string" or #event.eventType > 50 then
++				return false
++			end
++		end
++	end
++	
++	return true
++end
++
++-- Security: Check batch processing rate limit
++function NetworkClient.CheckBatchRateLimit(): boolean
++	local currentTime = tick()
++	
++	-- Clean old entries
++	for i = #eventRateTracker, 1, -1 do
++		if currentTime - eventRateTracker[i] > 1 then
++			table.remove(eventRateTracker, i)
++		end
++	end
++	
++	-- Check rate limit
++	if #eventRateTracker >= SECURITY_CONFIG.maxEventsPerSecond then
++		return false
++	end
++	
++	table.insert(eventRateTracker, currentTime)
++	return true
++end
++
+ -- Register event handler
+ function NetworkClient.RegisterEventHandler(eventType: string, handler: (data: any, priority: number?) -> boolean)

@@ -1,0 +1,56 @@
+--- a/StarterGui/TournamentUI/Tournament.client.lua
++++ b/StarterGui/TournamentUI/Tournament.client.lua
+@@ -1,5 +1,12 @@
+ -- Tournament.client.lua  
+ -- Tournament UI and client management
++
++-- Security Enhancement: Add rate limiting for tournament operations
++local TOURNAMENT_RATE_LIMIT = {
++	lastAction = 0,
++	minInterval = 2, -- 2 seconds between tournament actions
++	actionCount = 0
++}
+ 
+ local Players = game:GetService("Players")
+ local ReplicatedStorage = game:GetService("ReplicatedStorage")
+@@ -185,12 +192,30 @@ local function updateStatus(tournament)
+ end
+ 
+ joinButton.MouseButton1Click:Connect(function()
+-	TournamentRemote:FireServer("Join")
++	-- Security: Rate limiting
++	local currentTime = tick()
++	if currentTime - TOURNAMENT_RATE_LIMIT.lastAction < TOURNAMENT_RATE_LIMIT.minInterval then
++		warn("Tournament action rate limited")
++		return
++	end
++	TOURNAMENT_RATE_LIMIT.lastAction = currentTime
++	TOURNAMENT_RATE_LIMIT.actionCount = TOURNAMENT_RATE_LIMIT.actionCount + 1
++	
++	TournamentRemote:FireServer("Join")
+ end)
+ 
+ createButton.MouseButton1Click:Connect(function()
+-	TournamentRemote:FireServer("Create", {
++	-- Security: Rate limiting
++	local currentTime = tick()
++	if currentTime - TOURNAMENT_RATE_LIMIT.lastAction < TOURNAMENT_RATE_LIMIT.minInterval then
++		warn("Tournament action rate limited")
++		return
++	end
++	TOURNAMENT_RATE_LIMIT.lastAction = currentTime
++	TOURNAMENT_RATE_LIMIT.actionCount = TOURNAMENT_RATE_LIMIT.actionCount + 1
++	
++	-- Security: Input validation for tournament creation
++	local config = {
+ 		name = "FPS Tournament",
+ 		maxPlayers = 8
+-	})
++	}
++	if typeof(config.name) == "string" and #config.name <= 50 and 
++	   typeof(config.maxPlayers) == "number" and config.maxPlayers >= 2 and config.maxPlayers <= 64 then
++		TournamentRemote:FireServer("Create", config)
++	else
++		warn("Invalid tournament configuration")
++	end
+ end)

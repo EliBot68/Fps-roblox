@@ -1,0 +1,93 @@
+--- a/src/ServerScriptService/Services/HitDetection.lua
++++ b/src/ServerScriptService/Services/HitDetection.lua
+@@ -37,6 +37,15 @@ local HIT_CONFIG = {
+ 
+ -- Hit validation cache
+ local recentHits: {[Player]: {[number]: {time: number, position: Vector3}}} = {}
++
++-- Security Enhancement: Add rate limiting and validation
++local SECURITY_CONFIG = {
++	maxHitsPerSecond = 30,
++	suspiciousDistanceThreshold = 500, -- Distance that triggers investigation
++	maxPenetrationDepth = 3,
++	minTimeBetweenHits = 0.033 -- ~30 FPS minimum
++}
++
+ 
+ -- Initialize hit detection
+ function HitDetection.Initialize()
+@@ -60,6 +69,18 @@ function HitDetection.ProcessHit(
+ 		serverTime = tick()
+ 	}
+ 	
++	-- Security: Validate hit timing
++	if not HitDetection.ValidateHitTiming(shooter, fireTime) then
++		AntiCheatService.LogSuspiciousActivity(shooter, "invalid_hit_timing", {
++			fireTime = fireTime,
++			serverTime = tick()
++		})
++		return hitInfo
++	end
++	
++	-- Security: Validate hit for realistic constraints
++	if not HitDetection.ValidateHit(shooter, hitInfo) then
++		return hitInfo
++	end
++	
+ 	-- Get shooter character and position
+ 	local shooterCharacter = shooter.Character
+ 	if not shooterCharacter or not shooterCharacter:FindFirstChild("HumanoidRootPart") then
+@@ -75,6 +96,13 @@ function HitDetection.ProcessHit(
+ 		})
+ 		return hitInfo
+ 	end
++	
++	-- Security: Check for suspicious distance patterns
++	if distance > SECURITY_CONFIG.suspiciousDistanceThreshold then
++		AntiCheatService.LogSuspiciousActivity(shooter, "suspicious_shot_distance", {
++			distance = distance
++		})
++	end
+ 	
+ 	-- Perform server-side raycast with lag compensation
+ 	local raycastResult = HitDetection.PerformLagCompensatedRaycast(
+@@ -171,7 +199,7 @@ function HitDetection.PerformLagCompensatedRaycast(
+ 	local penetrationCount = 0
+ 	
+ 	while remainingDistance > 0 and penetrationCount < CombatConstants.MAX_PENETRATIONS do
++		-- Security: Limit penetration depth
++		if penetrationCount >= SECURITY_CONFIG.maxPenetrationDepth then
++			break
++		end
++		
+ 		local raycast = workspace:Raycast(currentPosition, direction * remainingDistance, raycastParams)
+ 		
+ 		if raycast then
+@@ -397,6 +425,25 @@ function HitDetection.ValidateHit(player: Player, hitInfo: HitInfo): boolean
+ 	return true
+ end
+ 
++-- Security: Validate hit timing for anti-cheat
++function HitDetection.ValidateHitTiming(player: Player, fireTime: number): boolean
++	local currentTime = tick()
++	local timeDiff = currentTime - fireTime
++	
++	-- Check for time manipulation (shots from future or too far in past)
++	if timeDiff < -0.1 or timeDiff > 5 then
++		return false
++	end
++	
++	-- Check minimum time between hits
++	local playerHits = recentHits[player]
++	if playerHits and #playerHits > 0 then
++		local lastHitTime = playerHits[#playerHits].time
++		if currentTime - lastHitTime < SECURITY_CONFIG.minTimeBetweenHits then
++			return false
++		end
++	end
++	
++	return true
++end
++
+ -- Get hit statistics for player
+ function HitDetection.GetHitStats(player: Player): {totalHits: number, accuracy: number, headshotRate: number}

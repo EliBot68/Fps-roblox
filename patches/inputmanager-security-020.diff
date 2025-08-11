@@ -1,0 +1,113 @@
+--- a/src/StarterPlayer/StarterPlayerScripts/Controllers/InputManager.lua
++++ b/src/StarterPlayer/StarterPlayerScripts/Controllers/InputManager.lua
+@@ -13,6 +13,11 @@ local InputManager = {}
+ 
+ -- Configuration
+ local INPUT_CONFIG = {
++	-- Security: Rate limiting for input events
++	maxInputsPerSecond = 100,
++	inputCooldown = 0.01, -- 10ms minimum between inputs
++	maxTouchPoints = 10,
++	
+ 	mouseSensitivity = 1.0,
+ 	invertY = false,
+ 	deadZone = 0.1,
+@@ -31,6 +36,10 @@ local boundActions: {[string]: {
+ local isMouseLocked = false
+ local lastMousePosition = Vector2.new()
+ local touchConnections: {[InputObject]: RBXScriptConnection} = {}
++
++-- Security: Input rate limiting
++local lastInputTime = 0
++local inputCount = 0
+ 
+ -- Platform detection
+ local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+@@ -51,6 +60,21 @@ function InputManager.Initialize()
+ 	print("[InputManager] ✓ Initialized for platform:", isMobile and "Mobile" or isGamepad and "Gamepad" or "Desktop")
+ end
+ 
++-- Security: Rate limiting check for inputs
++local function isInputRateLimited(): boolean
++	local currentTime = tick()
++	
++	-- Reset counter every second
++	if currentTime - lastInputTime > 1 then
++		inputCount = 0
++		lastInputTime = currentTime
++	end
++	
++	inputCount = inputCount + 1
++	
++	-- Check if over limit
++	return inputCount > INPUT_CONFIG.maxInputsPerSecond
++end
++
+ -- Bind action to input
+ function InputManager.BindAction(actionName: string, startCallback: InputCallback?, endCallback: InputCallback?)
+ 	boundActions[actionName] = {
+@@ -91,6 +115,11 @@ function InputManager.SetupDesktopInput()
+ 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+ 		if gameProcessed then return end
+ 		
++		-- Security: Rate limiting check
++		if isInputRateLimited() then
++			return
++		end
++		
+ 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+ 			InputManager.HandleActionStart("Fire")
+ 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+@@ -101,6 +130,11 @@ function InputManager.SetupDesktopInput()
+ 	UserInputService.InputEnded:Connect(function(input, gameProcessed)
+ 		if gameProcessed then return end
+ 		
++		-- Security: Rate limiting check
++		if isInputRateLimited() then
++			return
++		end
++		
+ 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+ 			InputManager.HandleActionEnd("Fire")
+ 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+@@ -112,6 +146,11 @@ function InputManager.SetupDesktopInput()
+ 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+ 		if gameProcessed then return end
+ 		
++		-- Security: Rate limiting check
++		if isInputRateLimited() then
++			return
++		end
++		
+ 		if input.UserInputType == Enum.UserInputType.Keyboard then
+ 			InputManager.HandleKeyboardInput(input.KeyCode, true)
+ 		end
+@@ -120,6 +159,11 @@ function InputManager.SetupDesktopInput()
+ 	UserInputService.InputEnded:Connect(function(input, gameProcessed)
+ 		if gameProcessed then return end
+ 		
++		-- Security: Rate limiting check
++		if isInputRateLimited() then
++			return
++		end
++		
+ 		if input.UserInputType == Enum.UserInputType.Keyboard then
+ 			InputManager.HandleKeyboardInput(input.KeyCode, false)
+ 		end
+@@ -141,6 +185,16 @@ function InputManager.SetupMobileInput()
+ 	-- Touch input for looking around
+ 	UserInputService.TouchStarted:Connect(function(touch, gameProcessed)
+ 		if gameProcessed then return end
++		
++		-- Security: Limit number of concurrent touch points
++		local activeTouches = 0
++		for _ in pairs(touchConnections) do
++			activeTouches = activeTouches + 1
++		end
++		if activeTouches >= INPUT_CONFIG.maxTouchPoints then
++			return
++		end
++		
+ 		InputManager.HandleTouchStart(touch)
+ 	end)
+ 	

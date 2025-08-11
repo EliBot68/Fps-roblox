@@ -1,0 +1,53 @@
+--- a/StarterGui/ShopUI/ShopUI.client.lua
++++ b/StarterGui/ShopUI/ShopUI.client.lua
+@@ -1,5 +1,13 @@
+ -- ShopUI.client.lua
+ -- Shop interface for cosmetics and weapons
++
++-- Security Enhancement: Add rate limiting and input validation
++local RATE_LIMIT = {
++	purchases = {},
++	lastPurchase = 0,
++	minInterval = 1, -- 1 second between purchases
++	maxPurchasesPerMinute = 10
++}
+ 
+ local Players = game:GetService("Players")
+ local ReplicatedStorage = game:GetService("ReplicatedStorage")
+@@ -133,8 +141,29 @@ local function createItemButton(item, index)
+ 	buyButton.Parent = itemFrame
+ 	
+ 	buyButton.MouseButton1Click:Connect(function()
+-		PurchaseItemRemote:FireServer(currentTab == "Weapons" and "Weapon" or "Cosmetic", item.name)
++		-- Security: Rate limiting
++		local currentTime = tick()
++		if currentTime - RATE_LIMIT.lastPurchase < RATE_LIMIT.minInterval then
++			warn("Purchase rate limited - please wait")
++			return
++		end
++		
++		-- Clean old entries
++		local cutoff = currentTime - 60
++		for i = #RATE_LIMIT.purchases, 1, -1 do
++			if RATE_LIMIT.purchases[i] < cutoff then
++				table.remove(RATE_LIMIT.purchases, i)
++			end
++		end
++		
++		if #RATE_LIMIT.purchases >= RATE_LIMIT.maxPurchasesPerMinute then
++			warn("Too many purchases - rate limited")
++			return
++		end
++		
++		table.insert(RATE_LIMIT.purchases, currentTime)
++		RATE_LIMIT.lastPurchase = currentTime
++		
++		-- Security: Input validation
++		local itemType = currentTab == "Weapons" and "Weapon" or "Cosmetic"
++		if typeof(item.name) == "string" and #item.name > 0 and #item.name <= 50 then
++			PurchaseItemRemote:FireServer(itemType, item.name)
++		else
++			warn("Invalid item name")
++		end
+ 	end)
+ end

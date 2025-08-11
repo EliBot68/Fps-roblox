@@ -1,0 +1,157 @@
+--- a/src/StarterPlayer/StarterPlayerScripts/Core/NetworkProxy.lua
++++ b/src/StarterPlayer/StarterPlayerScripts/Core/NetworkProxy.lua
+@@ -15,9 +15,16 @@ type NetworkProxy = ClientTypes.NetworkProxy
+ local NetworkProxyImpl = {}
+ NetworkProxyImpl.__index = NetworkProxyImpl
+ 
+--- Constants for security and performance
++-- Enhanced security constants
+ local THROTTLE_CACHE_SIZE = 100
+ local MAX_PAYLOAD_SIZE = 8192 -- 8KB limit
+ local SUSPICIOUS_ACTIVITY_THRESHOLD = 10
+ local VALIDATION_TIMEOUT = 5
++local MAX_REMOTE_CALLS_PER_SECOND = 60
++local PAYLOAD_SANITIZATION_DEPTH = 5
++
++-- Security tracking
++local remoteCallHistory: {[string]: {number}} = {}
++local payloadViolations = 0
+ 
+ -- Private properties
+ local throttleCache: {[string]: {lastCall: number, count: number}} = {}
+@@ -36,6 +43,10 @@ function NetworkProxyImpl.new(remoteObject: RemoteEvent | RemoteFunction, confi
+ 	local self = setmetatable({
+ 		_remote = remoteObject,
+ 		_maxPayloadSize = config.maxPayloadSize or MAX_PAYLOAD_SIZE,
+ 		_enableLogging = config.enableLogging or false,
+ 		_type = if remoteObject:IsA("RemoteEvent") then "Event" else "Function"
++		_sanitizationDepth = 0 -- Track recursion depth for sanitization
+ 	}, NetworkProxyImpl)
++	
++	-- Initialize rate limiting for this remote
++	remoteCallHistory[remoteObject.Name] = {}
+ 	
+ 	return self
+ end
+@@ -60,6 +71,11 @@ function NetworkProxyImpl:validatePayload(payload: {[string]: any}): boolean
+ 		return false
+ 	end
+ 	
++	-- Security: Check for payload structure attacks
++	if self:_checkForMaliciousStructure(payload) then
++		payloadViolations += 1
++		return false
++	end
++	
+ 	-- Validate payload structure
+ 	return self:_validatePayloadStructure(payload)
+ end
+@@ -71,6 +87,12 @@ end
+ 	@returns any - Sanitized data
+ ]]
+ function NetworkProxyImpl:sanitizeData(data: any): any
++	-- Security: Prevent infinite recursion
++	self._sanitizationDepth += 1
++	if self._sanitizationDepth > PAYLOAD_SANITIZATION_DEPTH then
++		self._sanitizationDepth -= 1
++		return nil
++	end
++	
+ 	local dataType = typeof(data)
+ 	
+ 	if dataType == "string" then
+@@ -102,6 +124,8 @@ function NetworkProxyImpl:sanitizeData(data: any): any
+ 		return CFrame.new(pos) * (data - data.Position)
+ 	end
+ 	
++	self._sanitizationDepth -= 1
+ 	return data
+ end
+ 
+@@ -113,6 +137,17 @@ end
+ 	@returns boolean - True if action is allowed, false if throttled
+ ]]
+ function NetworkProxyImpl:throttle(action: string, cooldown: number): boolean
++	-- Security: Global rate limiting per remote
++	local remoteName = self._remote.Name
++	local now = tick()
++	local history = remoteCallHistory[remoteName]
++	
++	-- Clean old entries and count recent calls
++	local recentCalls = 0
++	for i = #history, 1, -1 do
++		if now - history[i] > 1 then
++			table.remove(history, i)
++		else
++			recentCalls += 1
++		end
++	end
++	
++	-- Security: Check for excessive remote calls
++	if recentCalls >= MAX_REMOTE_CALLS_PER_SECOND then
++		suspiciousActivity += 1
++		if self._enableLogging then
++			warn("[NetworkProxy] Rate limit exceeded for remote:", remoteName)
++		end
++		return false
++	end
++	
++	table.insert(history, now)
++	
+ 	local now = tick()
+ 	local cacheKey = self._remote.Name .. ":" .. action
+ 	
+@@ -187,6 +222,25 @@ function NetworkProxyImpl:fireServer(...: any): ()
+ 	end
+ 	
+ 	local args = {...}
++	
++	-- Security: Validate and sanitize all arguments
++	for i, arg in ipairs(args) do
++		if typeof(arg) == "table" then
++			if not self:validatePayload(arg) then
++				if self._enableLogging then
++					warn("[NetworkProxy] Invalid payload blocked for:", self._remote.Name)
++				end
++				return
++			end
++			args[i] = self:sanitizeData(arg)
++		else
++			args[i] = self:sanitizeData(arg)
++		end
++	end
++	
++	-- Security: Check throttling
++	if not self:throttle("fireServer", 0.033) then -- ~30 FPS limit
++		return
++	end
++	
++	self._remote:FireServer(unpack(args))
++end
++
++-- Security: Detect malicious payload structures
++function NetworkProxyImpl:_checkForMaliciousStructure(payload: any): boolean
++	local function checkDepth(data, depth)
++		if depth > 10 then
++			return true -- Too deep, potential stack overflow
++		end
++		
++		if typeof(data) == "table" then
++			local count = 0
++			for k, v in pairs(data) do
++				count += 1
++				if count > 1000 then
++					return true -- Too many keys, potential memory exhaustion
++				end
++				
++				if checkDepth(k, depth + 1) or checkDepth(v, depth + 1) then
++					return true
++				end
++			end
++		end
++		
++		return false
++	end
++	
++	return checkDepth(payload, 0)
++end
