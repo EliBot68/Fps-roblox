@@ -1,0 +1,26 @@
+--- a/ServerScriptService/Core/Combat.server.lua
++++ b/ServerScriptService/Core/Combat.server.lua
+@@ -535,7 +535,21 @@ end
+ 
+ -- Remote event handlers  
+ if FireWeaponRemote then
+-	FireWeaponRemote.OnServerEvent:Connect(function(player, origin, direction, weaponId)
++	FireWeaponRemote.OnServerEvent:Connect(function(player, origin, direction, weaponId)
++		-- SECURITY FIX: Enhanced rate limiting with session tracking
++		local playerId = tostring(player.UserId)
++		local sessionId = player:GetAttribute("SessionId") or ""
++		local rateLimitKey = string.format("%s:%s:Fire", playerId, sessionId)
++		
+ 		if not RateLimiter.Consume(player, "Fire", 1) then return end
++		
++		-- Additional rate limiting: Track rapid reconnection attempts
++		local lastConnection = player:GetAttribute("LastConnectionTime") or 0
++		local connectionTime = tick()
++		if connectionTime - lastConnection < 5 then -- Reconnected within 5 seconds
++			local reconnectCount = player:GetAttribute("ReconnectCount") or 0
++			player:SetAttribute("ReconnectCount", reconnectCount + 1)
++			if reconnectCount > 3 then -- Too many rapid reconnections
++				Logging.Warn("Combat", "Rapid reconnection rate limit bypass attempt from " .. player.Name)
++				return
++			end
++		end

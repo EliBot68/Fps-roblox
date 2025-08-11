@@ -1,0 +1,75 @@
+--- a/StarterGui/ShopUI/ShopUI.client.lua
++++ b/StarterGui/ShopUI/ShopUI.client.lua
+@@ -70,12 +70,6 @@ contentFrame.Parent = frame
+ 
+ local currentTab = "Weapons"
+ 
+-local SHOP_ITEMS = {
+-	Weapons = {
+-		{ name = "SMG", cost = 500, desc = "High fire rate, low damage" },
+-		{ name = "Shotgun", cost = 800, desc = "Close range powerhouse" },
+-		{ name = "Sniper", cost = 1200, desc = "Long range precision" },
+-	},
+-	Cosmetics = {
+-		{ name = "RedTrail", cost = 300, desc = "Red particle trail" },
+-		{ name = "BlueTrail", cost = 300, desc = "Blue particle trail" },
+-		{ name = "GoldSkin", cost = 1000, desc = "Golden weapon skin" },
+-	}
+-}
++-- Security: Shop items must be retrieved from server, not hardcoded client-side
++local shopItems = {}
++local GetShopItemsRemote = ShopEvents:WaitForChild("GetShopItems")
+ 
+ local function createItemButton(item, index)
+ 	local itemFrame = Instance.new("Frame")
+@@ -140,6 +134,14 @@ local function createItemButton(item, index)
+ 	buyButton.MouseButton1Click:Connect(function()
++		-- Security: Validate item exists before purchase
++		if not item or not item.name or not item.cost then
++			warn("Invalid shop item data")
++			return
++		end
++		
++		-- Security: Additional client-side validation (server will re-validate)
+ 		PurchaseItemRemote:FireServer(currentTab == "Weapons" and "Weapon" or "Cosmetic", item.name)
+ 	end)
+ end
+ 
+@@ -148,7 +150,7 @@ local function refreshTab()
+ 		if child:IsA("GuiObject") then child:Destroy() end
+ 	end
+ 	
+-	local items = SHOP_ITEMS[currentTab]
++	local items = shopItems[currentTab] or {}
+ 	for i,item in ipairs(items) do
+ 		createItemButton(item, i)
+ 	end
+@@ -179,6 +181,20 @@ closeButton.MouseButton1Click:Connect(function()
+ 	frame.Visible = false
+ end)
+ 
++-- Security: Request shop items from server when UI opens
++local function requestShopItems()
++	GetShopItemsRemote:InvokeServer()
++end
++
++-- Handle shop items response from server
++GetShopItemsRemote.OnClientInvoke = function(items)
++	if type(items) == "table" then
++		shopItems = items
++		if frame.Visible then
++			refreshTab()
++		end
++	end
++end
++
+ -- Toggle shop with key
+ local UserInputService = game:GetService("UserInputService")
+ UserInputService.InputBegan:Connect(function(input)
+@@ -186,6 +202,7 @@ UserInputService.InputBegan:Connect(function(input)
+ 		frame.Visible = not frame.Visible
+ 		if frame.Visible then
++			requestShopItems()
+ 			refreshTab()
+ 		end
+ 	end

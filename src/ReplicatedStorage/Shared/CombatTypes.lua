@@ -23,7 +23,7 @@ export type CFrame = {
 }
 
 -- Weapon System Types
-export type WeaponCategory = "AssaultRifle" | "SniperRifle" | "SMG" | "Shotgun" | "Pistol" | "LMG" | "Melee"
+export type WeaponCategory = "AssaultRifle" | "SniperRifle" | "SMG" | "Shotgun" | "Pistol" | "LMG" | "Melee" | "Utility"
 export type WeaponRarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic"
 export type DamageType = "Bullet" | "Explosive" | "Melee" | "Fire" | "Poison"
 

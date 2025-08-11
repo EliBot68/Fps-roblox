@@ -1,17 +1,58 @@
 --!strict
 --[[
 	WeaponConfig.lua
-	Central weapon configuration and stats
+	Central weapon configuration and stats (normalized + legacy compatibility)
 ]]
 
 local WeaponConfig = {}
-
--- Import unified types from CombatTypes
 local CombatTypes = require(script.Parent.CombatTypes)
-type WeaponStats = CombatTypes.WeaponConfig -- Use the comprehensive WeaponConfig type
+local Logger = require(script.Parent.Logger)
 
--- Weapon configurations
-local WEAPON_CONFIGS: {[string]: WeaponStats} = {
+local logger = Logger.new("WeaponConfig")
+
+-- Internal normalized stats type (unified)
+export type NormalizedWeaponStats = {
+	-- Core unified fields
+	damage: number,
+	headDamage: number,
+	headshotMultiplier: number, -- derived for backward compatibility
+	fireRate: number,
+	reloadTime: number,
+	magazineSize: number,
+	maxAmmo: number,
+	range: number,
+	accuracy: number,
+	recoilPattern: {Vector3},
+	penetration: number,
+	velocity: number,
+	muzzleVelocity: number, -- alias for velocity
+	dropoff: { { distance: number, damageMultiplier: number } },
+	damageDropoff: {[number]: number}?, -- synthesized legacy map (distance->mult)
+	weight: number?
+}
+
+export type NormalizedWeaponConfig = {
+	id: string,
+	name: string,
+	displayName: string?,
+	description: string?,
+	category: CombatTypes.WeaponCategory,
+	rarity: CombatTypes.WeaponRarity,
+	stats: NormalizedWeaponStats,
+	attachmentSlots: {[string]: boolean}?,
+	unlockLevel: number?,
+	cost: number?,
+	modelId: string?,
+	iconId: string?,
+	sounds: {[string]: any}?,
+	animations: {[string]: any}?,
+	effects: {[string]: any}?,
+	economy: {cost: number?, unlockLevel: number?, rarity: string?}?,
+	model: string?
+}
+
+-- Raw weapon configurations (may contain legacy field names)
+local WEAPON_CONFIGS: {[string]: any} = {
 	-- Assault Rifles
 	["AK47"] = {
 		id = "AK47",
@@ -703,149 +744,418 @@ local WEAPON_CONFIGS: {[string]: WeaponStats} = {
 	}
 }
 
--- Get weapon configuration by ID
-function WeaponConfig.GetWeaponConfig(weaponID: string): CombatTypes.WeaponConfig?
-	return WEAPON_CONFIGS[weaponID]
+-- Normalized cache
+local _normalizedCache: {[string]: NormalizedWeaponConfig} = {}
+local _ttkCache: {[string]: {[number]: number}} = {} -- weaponId -> {distance -> ttk}
+local _validationResults: {weaponId: string, issues: {string}}? = nil
+
+local function normalizeDropoff(stats: any): { { distance: number, damageMultiplier: number } }
+	-- Accept either table with numeric keys (array of objects) or map distance->multiplier
+	local result: { { distance: number, damageMultiplier: number } } = {}
+	if stats.dropoff and typeof(stats.dropoff) == "table" then
+		if #stats.dropoff > 0 then
+			for _, point in ipairs(stats.dropoff) do
+				if typeof(point) == "table" and point.distance and point.damageMultiplier then
+					table.insert(result, { distance = point.distance, damageMultiplier = point.damageMultiplier })
+				end
+			end
+		else
+			for distance, mult in pairs(stats.dropoff) do
+				if typeof(distance) == "number" and typeof(mult) == "number" then
+					table.insert(result, { distance = distance, damageMultiplier = mult })
+				end
+			end
+		end
+	elseif stats.damageDropoff then
+		for distance, mult in pairs(stats.damageDropoff) do
+			if typeof(distance) == "number" and typeof(mult) == "number" then
+				table.insert(result, { distance = distance, damageMultiplier = mult })
+			end
+		end
+	end
+	if #result == 0 then
+		result = { { distance = 0, damageMultiplier = 1.0 } }
+	end
+	 table.sort(result, function(a,b) return a.distance < b.distance end)
+	return result
 end
 
--- Get all weapon configurations
-function WeaponConfig.GetAllWeapons(): {[string]: CombatTypes.WeaponConfig}
-	return WEAPON_CONFIGS
+local function normalizeStats(rawStats: any): NormalizedWeaponStats
+	local damage = rawStats.damage or 0
+	local headDamage = rawStats.headDamage
+	local headshotMultiplier = rawStats.headshotMultiplier
+	if not headDamage and headshotMultiplier then
+		headDamage = damage * headshotMultiplier
+	elseif not headDamage then
+		headDamage = damage * 2
+	end
+	local derivedMultiplier = headDamage > 0 and damage > 0 and (headDamage / damage) or (headshotMultiplier or 2)
+	local velocity = rawStats.muzzleVelocity or rawStats.velocity or 0
+	local dropoffArr = normalizeDropoff(rawStats)
+	local dropoffMap: {[number]: number} = {}
+	for _, p in ipairs(dropoffArr) do
+		dropoffMap[p.distance] = p.damageMultiplier
+	end
+	return {
+		damage = damage,
+		headDamage = headDamage,
+		headshotMultiplier = derivedMultiplier,
+		fireRate = rawStats.fireRate or 0,
+		reloadTime = rawStats.reloadTime or 0,
+		magazineSize = rawStats.magazineSize or 0,
+		maxAmmo = rawStats.maxAmmo or 0,
+		range = rawStats.range or 0,
+		accuracy = rawStats.accuracy or 0,
+		recoilPattern = rawStats.recoilPattern or {},
+		penetration = rawStats.penetration or 0,
+		velocity = velocity,
+		muzzleVelocity = velocity,
+		dropoff = dropoffArr,
+		damageDropoff = dropoffMap,
+		weight = rawStats.weight,
+	}
 end
 
--- Get weapons by category
-function WeaponConfig.GetWeaponsByCategory(category: string): {CombatTypes.WeaponConfig}
-	local weapons = {}
+local function normalizeConfig(raw: any): NormalizedWeaponConfig
+	if _normalizedCache[raw.id] then
+		return _normalizedCache[raw.id]
+	end
+	local cfg: NormalizedWeaponConfig = {
+		id = raw.id,
+		name = raw.name,
+		displayName = raw.displayName or raw.name,
+		description = raw.description,
+		category = raw.category,
+		rarity = (raw.economy and raw.economy.rarity) or raw.rarity,
+		stats = normalizeStats(raw.stats or raw),
+		attachmentSlots = raw.attachmentSlots,
+		unlockLevel = (raw.economy and raw.economy.unlockLevel) or raw.unlockLevel,
+		cost = (raw.economy and raw.economy.cost) or raw.cost,
+		modelId = raw.modelId or raw.model,
+		iconId = raw.iconId,
+		sounds = raw.sounds,
+		animations = raw.animations,
+		effects = raw.effects,
+		economy = raw.economy,
+		model = raw.model,
+	}
+	_normalizedCache[raw.id] = cfg
+	return cfg
+end
+
+-- Cache invalidation and management
+function WeaponConfig.RefreshCache(weaponId: string?)
+	if weaponId then
+		_normalizedCache[weaponId] = nil
+		_ttkCache[weaponId] = nil
+		logger:debug("Cache refreshed for weapon", {weaponId = weaponId})
+	else
+		_normalizedCache = {}
+		_ttkCache = {}
+		_validationResults = nil
+		logger:info("Full weapon cache cleared")
+	end
+end
+
+-- Efficient iteration utility
+function WeaponConfig.Iterate(callback: (NormalizedWeaponConfig) -> ())
+	for _, raw in pairs(WEAPON_CONFIGS) do
+		local normalized = normalizeConfig(raw)
+		callback(normalized)
+	end
+end
+
+-- Advanced validation with discrepancy logging
+function WeaponConfig.ValidateAllConfigs(): {totalWeapons: number, validWeapons: number, issues: {{weaponId: string, problems: {string}}}}
+	if _validationResults then
+		return _validationResults
+	end
 	
-	for _, weapon in pairs(WEAPON_CONFIGS) do
-		if weapon.category == category then
-			table.insert(weapons, weapon)
+	local issues: {{weaponId: string, problems: {string}}} = {}
+	local validCount = 0
+	local totalCount = 0
+	
+	for weaponId, raw in pairs(WEAPON_CONFIGS) do
+		totalCount += 1
+		local problems: {string} = {}
+		
+		-- Basic field validation
+		if not raw.id or raw.id == "" then
+			table.insert(problems, "Missing or empty ID")
+		end
+		if not raw.name or raw.name == "" then
+			table.insert(problems, "Missing or empty name")
+		end
+		if not raw.category then
+			table.insert(problems, "Missing category")
+		else
+			-- Validate category is in union
+			local validCategories = {"AssaultRifle", "SniperRifle", "SMG", "Shotgun", "Pistol", "LMG", "Melee", "Utility"}
+			local isValidCategory = false
+			for _, validCat in ipairs(validCategories) do
+				if raw.category == validCat then
+					isValidCategory = true
+					break
+				end
+			end
+			if not isValidCategory then
+				table.insert(problems, "Invalid category: " .. tostring(raw.category))
+			end
+		end
+		
+		-- Stats validation
+		local stats = raw.stats or raw
+		if (stats.damage or 0) <= 0 then
+			table.insert(problems, "Non-positive damage")
+		end
+		if (stats.fireRate or 0) <= 0 then
+			table.insert(problems, "Non-positive fire rate")
+		end
+		if (stats.magazineSize or 0) <= 0 then
+			table.insert(problems, "Non-positive magazine size")
+		end
+		if (stats.accuracy or 0) < 0 or (stats.accuracy or 0) > 1 then
+			table.insert(problems, "Accuracy out of range [0,1]")
+		end
+		
+		-- Recoil pattern validation
+		if not stats.recoilPattern or #stats.recoilPattern == 0 then
+			table.insert(problems, "Missing or empty recoil pattern")
+		end
+		
+		-- Dropoff validation
+		local dropoffPoints = normalizeDropoff(stats)
+		for i = 2, #dropoffPoints do
+			if dropoffPoints[i].distance <= dropoffPoints[i-1].distance then
+				table.insert(problems, "Dropoff distances not in ascending order")
+				break
+			end
+		end
+		
+		-- Rarity validation
+		if raw.rarity or (raw.economy and raw.economy.rarity) then
+			local rarity = (raw.economy and raw.economy.rarity) or raw.rarity
+			local validRarities = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}
+			local isValidRarity = false
+			for _, validRar in ipairs(validRarities) do
+				if rarity == validRar then
+					isValidRarity = true
+					break
+				end
+			end
+			if not isValidRarity then
+				table.insert(problems, "Invalid rarity: " .. tostring(rarity))
+			end
+		end
+		
+		if #problems == 0 then
+			validCount += 1
+		else
+			table.insert(issues, {weaponId = weaponId, problems = problems})
 		end
 	end
 	
-	return weapons
+	_validationResults = {
+		totalWeapons = totalCount,
+		validWeapons = validCount,
+		issues = issues
+	}
+	
+	-- Log discrepancies
+	if #issues > 0 then
+		logger:warn("Weapon configuration validation found issues", {
+			totalWeapons = totalCount,
+			validWeapons = validCount,
+			invalidWeapons = #issues
+		})
+		for _, issue in ipairs(issues) do
+			logger:error("Weapon validation failed", {
+				weaponId = issue.weaponId,
+				problems = issue.problems
+			})
+		end
+	else
+		logger:info("All weapon configurations validated successfully", {
+			totalWeapons = totalCount
+		})
+	end
+	
+	return _validationResults
 end
 
--- Get weapons by rarity
-function WeaponConfig.GetWeaponsByRarity(rarity: string): {CombatTypes.WeaponConfig}
-	local weapons = {}
+-- Precompute TTK tables for analytics
+function WeaponConfig.PrecomputeTTKTables()
+	logger:info("Precomputing TTK reference tables...")
+	local distances = {10, 25, 50, 75, 100, 150, 200, 300, 500, 1000}
+	local armorValues = {0, 50, 100}
 	
-	for _, weapon in pairs(WEAPON_CONFIGS) do
-		if weapon.economy.rarity == rarity then
-			table.insert(weapons, weapon)
+	for weaponId, _ in pairs(WEAPON_CONFIGS) do
+		_ttkCache[weaponId] = {}
+		for _, distance in ipairs(distances) do
+			for _, armor in ipairs(armorValues) do
+				local key = distance * 1000 + armor -- Composite key
+				_ttkCache[weaponId][key] = WeaponConfig.CalculateTTK(weaponId, distance, armor)
+			end
 		end
 	end
 	
-	return weapons
+	logger:info("TTK tables precomputed", {
+		weaponCount = table.getn or #WEAPON_CONFIGS,
+		distancePoints = #distances,
+		armorVariants = #armorValues
+	})
 end
 
--- Get weapons unlocked at level
-function WeaponConfig.GetWeaponsForLevel(level: number): {CombatTypes.WeaponConfig}
-	local weapons = {}
+-- Get precomputed TTK
+function WeaponConfig.GetPrecomputedTTK(weaponId: string, distance: number, armor: number): number?
+	local cache = _ttkCache[weaponId]
+	if not cache then return nil end
 	
-	for _, weapon in pairs(WEAPON_CONFIGS) do
-		if weapon.economy.unlockLevel <= level then
-			table.insert(weapons, weapon)
+	-- Find closest distance
+	local distances = {10, 25, 50, 75, 100, 150, 200, 300, 500, 1000}
+	local closestDistance = distances[1]
+	for _, d in ipairs(distances) do
+		if math.abs(d - distance) < math.abs(closestDistance - distance) then
+			closestDistance = d
 		end
 	end
 	
+	-- Find closest armor
+	local armorValues = {0, 50, 100}
+	local closestArmor = armorValues[1]
+	for _, a in ipairs(armorValues) do
+		if math.abs(a - armor) < math.abs(closestArmor - armor) then
+			closestArmor = a
+		end
+	end
+	
+	local key = closestDistance * 1000 + closestArmor
+	return cache[key]
+end
+
+-- Public API
+function WeaponConfig.GetWeaponConfig(weaponID: string): NormalizedWeaponConfig?
+	local raw = WEAPON_CONFIGS[weaponID]
+	if not raw then return nil end
+	return normalizeConfig(raw)
+end
+
+function WeaponConfig.GetAllWeapons(): {[string]: NormalizedWeaponConfig}
+	local out: {[string]: NormalizedWeaponConfig} = {}
+	for id, raw in pairs(WEAPON_CONFIGS) do
+		out[id] = normalizeConfig(raw)
+	end
+	return out
+end
+
+function WeaponConfig.GetWeaponsByCategory(category: string): {NormalizedWeaponConfig}
+	local weapons: {NormalizedWeaponConfig} = {}
+	for _, raw in pairs(WEAPON_CONFIGS) do
+		if raw.category == category then
+			table.insert(weapons, normalizeConfig(raw))
+		end
+	end
 	return weapons
 end
 
--- Calculate damage at distance
+function WeaponConfig.GetWeaponsByRarity(rarity: string): {NormalizedWeaponConfig}
+	local weapons: {NormalizedWeaponConfig} = {}
+	for _, raw in pairs(WEAPON_CONFIGS) do
+		local r = (raw.economy and raw.economy.rarity) or raw.rarity
+		if r == rarity then
+			table.insert(weapons, normalizeConfig(raw))
+		end
+	end
+	return weapons
+end
+
+function WeaponConfig.GetWeaponsForLevel(level: number): {NormalizedWeaponConfig}
+	local weapons: {NormalizedWeaponConfig} = {}
+	for _, raw in pairs(WEAPON_CONFIGS) do
+		local unlock = (raw.economy and raw.economy.unlockLevel) or raw.unlockLevel or 1
+		if unlock <= level then
+			table.insert(weapons, normalizeConfig(raw))
+		end
+	end
+	return weapons
+end
+
 function WeaponConfig.CalculateDamageAtDistance(weaponID: string, distance: number, isHeadshot: boolean): number
-	local weapon = WEAPON_CONFIGS[weaponID]
-	if not weapon then return 0 end
-	
-	local baseDamage = isHeadshot and weapon.stats.headDamage or weapon.stats.damage
-	
-	-- Find appropriate damage multiplier for distance
+	local cfg = WeaponConfig.GetWeaponConfig(weaponID)
+	if not cfg then return 0 end
+	local baseDamage = isHeadshot and cfg.stats.headDamage or cfg.stats.damage
 	local multiplier = 1.0
-	for i = #weapon.stats.dropoff, 1, -1 do
-		local dropoffPoint = weapon.stats.dropoff[i]
-		if distance >= dropoffPoint.distance then
-			multiplier = dropoffPoint.damageMultiplier
+	for i = #cfg.stats.dropoff, 1, -1 do
+		local point = cfg.stats.dropoff[i]
+		if distance >= point.distance then
+			multiplier = point.damageMultiplier
 			break
 		end
 	end
-	
 	return math.floor(baseDamage * multiplier)
 end
 
--- Calculate bullets to kill
 function WeaponConfig.CalculateBTK(weaponID: string, distance: number, armor: number): {body: number, head: number}
 	local bodyDamage = WeaponConfig.CalculateDamageAtDistance(weaponID, distance, false)
 	local headDamage = WeaponConfig.CalculateDamageAtDistance(weaponID, distance, true)
-	
-	-- Apply armor reduction (simplified)
 	local armorMultiplier = math.max(0.5, 1 - (armor / 200))
 	bodyDamage = math.floor(bodyDamage * armorMultiplier)
 	headDamage = math.floor(headDamage * armorMultiplier)
-	
-	return {
-		body = math.ceil(100 / bodyDamage),
-		head = math.ceil(100 / headDamage)
-	}
+	return { body = math.ceil(100 / math.max(bodyDamage,1)), head = math.ceil(100 / math.max(headDamage,1)) }
 end
 
--- Get time to kill
 function WeaponConfig.CalculateTTK(weaponID: string, distance: number, armor: number): number
-	local weapon = WEAPON_CONFIGS[weaponID]
-	if not weapon then return math.huge end
-	
+	local cfg = WeaponConfig.GetWeaponConfig(weaponID)
+	if not cfg then return math.huge end
 	local btk = WeaponConfig.CalculateBTK(weaponID, distance, armor)
 	local shotsNeeded = btk.body
-	
-	if shotsNeeded <= 1 then
-		return 0
-	end
-	
-	local timeBetweenShots = 60 / weapon.stats.fireRate -- Convert RPM to seconds
+	if shotsNeeded <= 1 then return 0 end
+	local timeBetweenShots = 60 / math.max(cfg.stats.fireRate,1)
 	return (shotsNeeded - 1) * timeBetweenShots
 end
 
--- Validate weapon configuration
-function WeaponConfig.ValidateWeapon(weapon: CombatTypes.WeaponConfig): boolean
-	-- Check required fields
-	if not weapon.id or not weapon.name or not weapon.category then
-		return false
-	end
-	
-	-- Check numeric values are positive
-	if weapon.stats.damage <= 0 or weapon.stats.fireRate <= 0 or weapon.stats.magazineSize <= 0 then
-		return false
-	end
-	
-	-- Check accuracy is between 0 and 1
-	if weapon.stats.accuracy < 0 or weapon.stats.accuracy > 1 then
-		return false
-	end
-	
+function WeaponConfig.ValidateWeapon(raw: any): boolean
+	if not raw or not raw.id or not raw.name or not raw.category then return false end
+	local stats = raw.stats or raw
+	if (stats.damage or 0) <= 0 then return false end
+	if (stats.fireRate or 0) <= 0 then return false end
+	if (stats.magazineSize or 0) <= 0 then return false end
+	local acc = stats.accuracy or 0
+	if acc < 0 or acc > 1 then return false end
 	return true
 end
 
--- Get weapon categories
 function WeaponConfig.GetCategories(): {string}
-	return {
-		"AssaultRifle",
-		"SniperRifle", 
-		"Pistol",
-		"SMG",
-		"Shotgun",
-		"LMG",
-		"Utility"
-	}
+	return {"AssaultRifle","SniperRifle","Pistol","SMG","Shotgun","LMG","Utility"}
 end
 
--- Get weapon rarities
 function WeaponConfig.GetRarities(): {string}
-	return {
-		"Common",
-		"Rare", 
-		"Epic",
-		"Legendary",
-		"Mythic"
-	}
+	return {"Common","Rare","Epic","Legendary","Mythic"}
+end
+
+function WeaponConfig.GetHeadshotMultiplier(weaponID: string): number
+	local cfg = WeaponConfig.GetWeaponConfig(weaponID)
+	if not cfg then return 2 end
+	return cfg.stats.headshotMultiplier
+end
+
+-- Initialize WeaponConfig system with validation and precomputation
+function WeaponConfig.Initialize()
+	logger:info("Initializing WeaponConfig system...")
+	
+	-- Run comprehensive validation
+	local validationResults = WeaponConfig.ValidateAllConfigs()
+	
+	-- Precompute TTK tables
+	WeaponConfig.PrecomputeTTKTables()
+	
+	logger:info("WeaponConfig system initialized", {
+		totalWeapons = validationResults.totalWeapons,
+		validWeapons = validationResults.validWeapons,
+		hasIssues = #validationResults.issues > 0
+	})
+	
+	return validationResults
 end
 
 return WeaponConfig

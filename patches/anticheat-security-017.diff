@@ -1,0 +1,101 @@
+--- a/ServerScriptService/Core/AntiCheat.server.lua
++++ b/ServerScriptService/Core/AntiCheat.server.lua
+@@ -115,6 +115,15 @@ local function bump(player, key, weight, value)
+ 		-- Immediate ban for severe violations
+ 		player:Kick("Detected cheating - Banned")
+ 		-- Log to DataStore for permanent ban tracking
++		
++		-- Log comprehensive violation details before ban
++		Logging.Event("AntiCheatBan", {
++			userId = player.UserId,
++			playerName = player.Name,
++			totalScore = totalScore,
++			violations = anomalyScore[player],
++			timestamp = os.time()
++		})
++		
+ 		pcall(function()
+ 			DataStoreService:GetDataStore("BannedPlayers"):SetAsync(
+ 				tostring(player.UserId), 
+@@ -122,6 +131,15 @@ local function bump(player, key, weight, value)
+ 			)
+ 		end)
+ 	elseif totalScore > 100 then
+ 		-- Temporary kick for high suspicion
++		
++		-- Rate limit kicks to prevent abuse
++		local lastKick = anomalyScore[player].lastKick or 0
++		if os.time() - lastKick < 300 then -- 5 minute cooldown
++			return -- Don't kick again too soon
++		end
++		anomalyScore[player].lastKick = os.time()
++		
+ 		player:Kick("Suspected cheating detected - Please reconnect")
+ 	elseif totalScore > 75 then
+ 		-- Warning to player
+@@ -161,6 +179,12 @@ function AntiCheat.RecordShot(plr)
+ 	local currentTime = os.clock()
+ 	table.insert(h.times, currentTime)
+ 	
++	-- Security: Limit stored shot history to prevent memory exhaustion
++	if #h.times > 1000 then
++		-- Remove oldest 100 shots to prevent memory bloat
++		for i = 1, 100 do table.remove(h.times, 1) end
++	end
++	
+ 	-- prune old shots
+ 	for i=#h.times,1,-1 do
+ 		if currentTime - h.times[i] > FIRE_WINDOW then table.remove(h.times, i) end
+@@ -228,6 +252,14 @@ RunService.Heartbeat:Connect(function(dt)
+ 			-- Update behavioral stats for movement
+ 			updateBehaviorStats(player, "movementSpeed", speed)
+ 			updateBehaviorStats(player, "positionDelta", dist)
++			
++			-- Security: Validate delta time to prevent time manipulation exploits
++			if dt <= 0 or dt > 1 then
++				Logging.Warn("AntiCheat", "Invalid delta time detected: " .. tostring(dt) .. " for player " .. player.Name)
++				Metrics.Inc("AC_TimingManipulation")
++				bump(player, "timeManip", 25, dt)
++				return
++			end
+ 			
+ 			if dist > MAX_TELEPORT_DIST then
+ 				Logging.Warn("AntiCheat", player.Name .. " teleport spike dist=" .. dist)
+@@ -249,6 +281,15 @@ end)
+ 
+ function AntiCheat.StartTracking(player)
+ 	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
++		-- Security: Validate initial position is reasonable
++		local pos = player.Character.HumanoidRootPart.Position
++		if math.abs(pos.X) > 10000 or math.abs(pos.Y) > 10000 or math.abs(pos.Z) > 10000 then
++			Logging.Warn("AntiCheat", "Player spawned at suspicious position: " .. tostring(pos) .. " (" .. player.Name .. ")")
++			bump(player, "suspiciousSpawn", 15, pos.Magnitude)
++		end
++		
+ 		lastPositions[player] = { Position = player.Character.HumanoidRootPart.Position }
++		anomalyScore[player] = anomalyScore[player] or { total = 0 } -- Initialize if needed
+ 	end
+ 	player.CharacterAdded:Connect(function(char)
+ 		local root = char:WaitForChild("HumanoidRootPart")
+@@ -283,6 +324,21 @@ end
+ -- Clean up player data on disconnect
+ local function onPlayerLeaving(player)
+ 	anomalyScore[player] = nil
++	
++	-- Log final stats before cleanup for analytics
++	if shotHistory[player] then
++		local shots = shotHistory[player]
++		Logging.Event("PlayerSession", {
++			userId = player.UserId,
++			sessionStats = {
++				totalShots = #shots.times,
++				hits = shots.hits,
++				headshots = shots.head,
++				sessionDuration = os.time() - (player:GetAttribute("JoinTime") or os.time())
++			}
++		})
++	end
++	
+ 	behaviorStats[player] = nil
+ 	shotHistory[player] = nil
+ 	lastPositions[player] = nil

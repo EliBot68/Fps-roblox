@@ -1,0 +1,37 @@
+--- a/StarterPlayer/StarterPlayerScripts/OptimizedInputSystem.client.lua
++++ b/StarterPlayer/StarterPlayerScripts/OptimizedInputSystem.client.lua
+@@ -42,6 +42,10 @@ local inputState = {
+ 	lastInputTime = {},
+ 	inputBuffer = {},
+ 	mouseDelta = Vector2.new(0, 0),
+-	cameraSensitivity = 1.0
++	cameraSensitivity = 1.0,
++	-- SECURITY FIX: Add rate limiting tracking
++	inputFrequency = {},
++	lastSecond = 0,
++	inputsThisSecond = 0
+ }
+ 
+ -- Input prediction
+@@ -68,6 +72,19 @@ function OptimizedInputSystem.SetupInputHandlers()
+ 	-- Mouse input with prediction
+ 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+ 		if gameProcessed then return end
++		
++		-- SECURITY FIX: Rate limiting for input frequency
++		local now = tick()
++		local currentSecond = math.floor(now)
++		
++		if currentSecond ~= inputState.lastSecond then
++			inputState.lastSecond = currentSecond
++			inputState.inputsThisSecond = 0
++		end
++		
++		inputState.inputsThisSecond = inputState.inputsThisSecond + 1
++		if inputState.inputsThisSecond > 200 then -- Max 200 inputs per second
++			warn("[OptimizedInputSystem] SECURITY: Input rate limit exceeded")
++			return -- Drop excessive inputs
++		end
+ 		
+ 		local now = tick()
+ 		inputState.lastInputTime[input.UserInputType] = now

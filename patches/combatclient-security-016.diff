@@ -1,0 +1,85 @@
+--- a/StarterPlayer/StarterPlayerScripts/CombatClient.client.lua
++++ b/StarterPlayer/StarterPlayerScripts/CombatClient.client.lua
+@@ -352,12 +352,26 @@ local function handleInput(input, gameProcessed)
+ 		-- Weapon switching
+ 		if input.UserInputState == Enum.UserInputState.Begin then
+ 			if input.KeyCode == Enum.KeyCode.One then
+-				CombatClient.SwitchWeapon("AssaultRifle")
++				if CombatClient.ValidateWeaponSwitch("AssaultRifle") then
++					CombatClient.SwitchWeapon("AssaultRifle")
++				end
+ 			elseif input.KeyCode == Enum.KeyCode.Two then
+-				CombatClient.SwitchWeapon("SMG")
++				if CombatClient.ValidateWeaponSwitch("SMG") then
++					CombatClient.SwitchWeapon("SMG")
++				end
+ 			elseif input.KeyCode == Enum.KeyCode.Three then
+-				CombatClient.SwitchWeapon("Shotgun")
++				if CombatClient.ValidateWeaponSwitch("Shotgun") then
++					CombatClient.SwitchWeapon("Shotgun")
++				end
+ 			elseif input.KeyCode == Enum.KeyCode.Four then
+-				CombatClient.SwitchWeapon("Sniper")
++				if CombatClient.ValidateWeaponSwitch("Sniper") then
++					CombatClient.SwitchWeapon("Sniper")
++				end
+ 			elseif input.KeyCode == Enum.KeyCode.Five then
+-				CombatClient.SwitchWeapon("Pistol")
++				if CombatClient.ValidateWeaponSwitch("Pistol") then
++					CombatClient.SwitchWeapon("Pistol")
++				end
+ 		end
+ 	end
+ end
+@@ -365,6 +379,7 @@ end
+ -- Auto-fire system
+ local autoFireConnection
+ local autoFireRateLimit = 0
++local lastAutoFireCheck = 0
+ local function startAutoFire()
+ 	if autoFireConnection then return end
+ 	
+@@ -372,6 +387,13 @@ local function startAutoFire()
+ 		if inputState.leftMouseDown and combatState.fireMode == "auto" then
++			-- Rate limiting for auto-fire
++			local currentTime = tick()
++			if currentTime - lastAutoFireCheck < 0.033 then -- Max 30 FPS auto-fire
++				return
++			end
++			lastAutoFireCheck = currentTime
++			
+ 			fire()
+ 		end
+ 	end)
+@@ -243,6 +243,12 @@ function CombatClient.EjectShell(weapon)
+ 	-- Create shell casing effect
+ 	local shell = Instance.new("Part")
++	
++	-- Limit shell casings to prevent memory issues
++	local shellCount = workspace:GetChildren()
++	if #shellCount > 100 then
++		return -- Skip shell creation if too many objects
++	end
++	
+ 	shell.Size = Vector3.new(0.1, 0.05, 0.1)
+ 	shell.Material = Enum.Material.Metal
+ 	shell.Color = Color3.fromRGB(200, 180, 120)
+@@ -270,6 +276,18 @@ function CombatClient.EjectShell(weapon)
+ 	game:GetService("Debris"):AddItem(shell, 3)
+ end
+ 
++-- Validate weapon switch requests
++function CombatClient.ValidateWeaponSwitch(weaponId)
++	-- Basic client-side validation (server will re-validate)
++	if not WeaponConfig[weaponId] then
++		return false
++	end
++	
++	-- Rate limit weapon switching
++	local currentTime = tick()
++	if currentTime - (combatState.lastWeaponSwitch or 0) < 0.5 then
++		return false
++	end
++	combatState.lastWeaponSwitch = currentTime
++	return true
++end

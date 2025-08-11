@@ -1,0 +1,39 @@
+--- a/ServerScriptService/Core/Combat.server.lua
++++ b/ServerScriptService/Core/Combat.server.lua
+@@ -535,12 +535,35 @@ end
+ 
+ -- Remote event handlers
+ if FireWeaponRemote then
+-	FireWeaponRemote.OnServerEvent:Connect(function(player, origin, direction, weaponId)
++	FireWeaponRemote.OnServerEvent:Connect(function(player, origin, direction, weaponId)
++		-- SECURITY FIX: Validate player position and weapon direction
+ 		if not RateLimiter.Consume(player, "Fire", 1) then return end
+ 		
++		-- Validate player character exists and is alive
++		local character = player.Character
++		if not character or not character:FindFirstChild("HumanoidRootPart") then return end
++		
++		local humanoidRootPart = character.HumanoidRootPart
++		local playerPosition = humanoidRootPart.Position
++		
++		-- SECURITY: Validate origin is near player's actual position
++		local originDistance = (origin - playerPosition).Magnitude
++		if originDistance > 20 then -- Allow 20 stud tolerance for weapon offset
++			Logging.Warn("Combat", string.format("Invalid origin from %s: %.2f studs from player", player.Name, originDistance))
++			return
++		end
++		
++		-- SECURITY: Validate direction is normalized and reasonable
++		if direction.Magnitude < 0.9 or direction.Magnitude > 1.1 then
++			Logging.Warn("Combat", string.format("Invalid direction magnitude from %s: %.3f", player.Name, direction.Magnitude))
++			return
++		end
++		
+ 		local valid, reason = RemoteValidator.ValidatePlayerAction(player, "FireWeapon", {origin, direction, weaponId})
+ 		if not valid then
+ 			Logging.Warn("Combat", "Invalid fire from " .. player.Name .. ": " .. reason)
++			-- SECURITY: Log potential exploit attempt
++			AntiCheat.RecordViolation(player, "FireWeapon", reason, {origin = origin, direction = direction})
+ 			return
+ 		end
+ 		

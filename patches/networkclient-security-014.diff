@@ -1,0 +1,37 @@
+--- a/StarterPlayerScripts/NetworkClient.client.lua
++++ b/StarterPlayerScripts/NetworkClient.client.lua
+@@ -73,8 +73,18 @@ end
+ 
+ -- Handle batched events from server
+ function NetworkClient.HandleBatchedEvents(batch: {[string]: any})
++	-- SECURITY FIX: Input validation and size limits
+ 	if not batch or type(batch) ~= "table" then
+ 		warn("[NetworkClient] Invalid batch received")
++		return
++	end
++	
++	-- Validate batch structure and size
++	local estimatedSize = #HttpService:JSONEncode(batch)
++	if estimatedSize > 10 * 1024 * 1024 then -- 10MB limit
++		warn("[NetworkClient] SECURITY: Batch size exceeds limit:", estimatedSize)
++		-- Log potential DoS attempt
++		ServiceLocator.GetService("AntiCheat"):ReportViolation(Players.LocalPlayer, "OversizedBatch", {size = estimatedSize})
+ 		return
+ 	end
+ 	
+@@ -90,6 +100,15 @@ function NetworkClient.HandleBatchedEvents(batch: {[string]: any})
+ 	-- Process each event in the batch
+ 	if batch.events then
++		-- SECURITY: Limit number of events per batch
++		if #batch.events > 1000 then
++			warn("[NetworkClient] SECURITY: Too many events in batch:", #batch.events)
++			ServiceLocator.GetService("AntiCheat"):ReportViolation(Players.LocalPlayer, "ExcessiveEvents", {count = #batch.events})
++			-- Process only first 1000 events
++			local limitedEvents = {}
++			for i = 1, 1000 do limitedEvents[i] = batch.events[i] end
++			batch.events = limitedEvents
++		end
++		
+ 		for _, event in ipairs(batch.events) do
+ 			if NetworkClient.ProcessEvent(event, batch.priority) then
+ 				eventsProcessed = eventsProcessed + 1

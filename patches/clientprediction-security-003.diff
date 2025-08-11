@@ -1,0 +1,33 @@
+--- a/ReplicatedStorage/Shared/ClientPrediction.lua
++++ b/ReplicatedStorage/Shared/ClientPrediction.lua
+@@ -222,10 +222,19 @@ function ClientPrediction.PredictMovement(character: Model, velocity: Vector3, 
+ 	local currentPosition = humanoidRootPart.Position
+ 	local predictedPosition = currentPosition + (velocity * deltaTime)
+ 	
+-	-- Validate prediction isn't too far off
+-	local maxMovement = 50 * deltaTime -- Max 50 studs/second
++	-- SECURITY FIX: Enforce realistic movement bounds
++	local maxWalkSpeed = 25 -- Realistic max walk speed
++	local maxRunSpeed = 35 -- Realistic max run speed  
++	local maxMovement = maxRunSpeed * deltaTime
+ 	local movementDistance = (predictedPosition - currentPosition).Magnitude
+ 	
++	-- Additional validation: Check for impossible acceleration
++	local lastVelocity = character:GetAttribute("LastVelocity") or Vector3.new()
++	local acceleration = (velocity - lastVelocity).Magnitude / deltaTime
++	if acceleration > 100 then -- Impossible acceleration detected
++		warn("[ClientPrediction] SECURITY: Impossible acceleration detected for", character.Name)
++		return currentPosition -- Reject prediction
++	end
++	
+ 	if movementDistance > maxMovement then
+ 		-- Clamp to maximum reasonable movement
+ 		local direction = (predictedPosition - currentPosition).Unit
+@@ -233,6 +242,8 @@ function ClientPrediction.PredictMovement(character: Model, velocity: Vector3, 
+ 		predictedPosition = currentPosition + (direction * maxMovement)
+ 	end
+ 	
++	-- Store velocity for next frame validation
++	character:SetAttribute("LastVelocity", velocity)
+ 	return predictedPosition
+ end

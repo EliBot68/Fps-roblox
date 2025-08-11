@@ -243,26 +243,24 @@ end
 
 -- Calculate final damage
 function HitDetection.CalculateDamage(
-	weapon: WeaponConfig,
+	weapon: any,
 	distance: number,
 	isHeadshot: boolean,
 	penetrationCount: number
 ): number
 	local stats = weapon.stats
-	-- Base damage selection
 	local base = stats.damage
 	if isHeadshot then
-		base *= stats.headshotMultiplier
+		if stats.headDamage then
+			base = stats.headDamage
+		elseif stats.headshotMultiplier then
+			base = base * stats.headshotMultiplier
+		end
 	end
-	
-	-- Use centralized ordered distance falloff for deterministic results
 	local multiplier = CombatConstants.GetDamageMultiplierForDistance(distance)
-	
-	-- Penetration reduction using centralized constant
 	if penetrationCount > 0 then
 		multiplier *= math.pow(CombatConstants.PENETRATION_DAMAGE_REDUCTION, penetrationCount)
 	end
-	
 	local finalDamage = math.max(CombatConstants.MIN_DAMAGE, math.floor(base * multiplier))
 	
 	logger:trace("Damage calculated", {

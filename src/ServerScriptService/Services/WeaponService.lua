@@ -48,7 +48,10 @@ local syncWeaponRemote = remoteEvents:WaitForChild("SyncWeapon")
 
 -- Initialize weapon service
 function WeaponService.Initialize()
-	-- Validate all weapon configurations at startup
+	-- Initialize WeaponConfig system first
+	local validationResults = WeaponConfig.Initialize()
+	
+	-- Validate all weapon configurations at startup  
 	WeaponService.ValidateAllWeaponConfigs()
 	
 	-- Set up remote event handlers
@@ -221,6 +224,9 @@ function WeaponService.ApplyAttachmentModifiers(weaponInstance: WeaponInstance, 
 		weaponId = weaponInstance.config.id,
 		attachmentCount = #attachments
 	})
+	
+	-- Invalidate normalized cache for this weapon since stats changed
+	WeaponConfig.RefreshCache(weaponInstance.config.id)
 	
 	return weaponInstance
 end

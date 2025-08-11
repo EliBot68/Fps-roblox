@@ -1,0 +1,35 @@
+--- a/ServerScriptService/Core/ShopManager.server.lua
++++ b/ServerScriptService/Core/ShopManager.server.lua
+@@ -57,8 +57,29 @@ local purchaseWeaponRE = shopFolder:WaitForChild("PurchaseItem")
+ local equipCosmeticRE = shopFolder:WaitForChild("EquipCosmetic")
+ 
+ purchaseWeaponRE.OnServerEvent:Connect(function(plr, kind, id)
++	-- SECURITY FIX: Input validation and sanitization
++	if not plr or not plr.Parent then return end
++	
++	-- Validate input parameters
++	if type(kind) ~= "string" or type(id) ~= "string" then
++		warn("[ShopManager] Invalid parameter types from", plr.Name)
++		return
++	end
++	
++	-- Sanitize inputs (prevent injection attacks)
++	kind = string.match(kind, "^[A-Za-z]+$") -- Only letters
++	id = string.match(id, "^[A-Za-z0-9_]+$") -- Letters, numbers, underscores only
++	
++	if not kind or not id then
++		warn("[ShopManager] Invalid characters in parameters from", plr.Name)
++		return
++	end
++	
++	-- Rate limiting per player
++	if not RateLimiter.consume(plr, "ShopPurchase", 1) then return end
++	
+ 	if kind == "Weapon" then
+-		ShopManager.PurchaseWeapon(plr, id)
++		local success, result = ShopManager.PurchaseWeapon(plr, id)
++		-- Log purchase attempts for security monitoring
++		Logging.Event("PurchaseAttempt", { u = plr.UserId, kind = kind, id = id, success = success, result = result })
+ 	elseif kind == "Cosmetic" then
+-		ShopManager.PurchaseCosmetic(plr, id)
++		local success, result = ShopManager.PurchaseCosmetic(plr, id)
