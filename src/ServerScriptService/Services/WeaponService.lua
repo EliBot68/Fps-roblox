@@ -12,21 +12,26 @@ local RunService = game:GetService("RunService")
 -- Import dependencies
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
 local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local CombatConstants = require(ReplicatedStorage.Shared.CombatConstants)
+local Logger = require(ReplicatedStorage.Shared.Logger)
 local AntiCheatService = require(ServerStorage.Services.AntiCheatService)
 local AnalyticsService = require(ServerStorage.Services.AnalyticsService)
 
 type WeaponInstance = CombatTypes.WeaponInstance
 type WeaponConfig = CombatTypes.WeaponConfig -- Use unified type
 type LoadoutData = CombatTypes.LoadoutData
-local WeaponService = {}
+type AttachmentConfig = CombatTypes.AttachmentConfig
 
--- Configuration
+local WeaponService = {}
+local logger = Logger.new("WeaponService")
+
+-- Configuration using centralized constants
 local WEAPON_CONFIG = {
-	maxWeaponsPerPlayer = 3,
-	respawnLoadoutDelay = 2.0, -- seconds
+	maxWeaponsPerPlayer = CombatConstants.MAX_WEAPONS_PER_PLAYER,
+	respawnLoadoutDelay = CombatConstants.RESPAWN_LOADOUT_DELAY,
 	weaponDropEnabled = true,
-	weaponPickupRadius = 10, -- studs
-	weaponDespawnTime = 30 -- seconds
+	weaponPickupRadius = CombatConstants.WEAPON_PICKUP_RADIUS,
+	weaponDespawnTime = CombatConstants.WEAPON_DESPAWN_TIME
 }
 
 -- Server state
@@ -39,9 +44,13 @@ local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild
 local equipWeaponRemote = remoteEvents:WaitForChild("EquipWeapon")
 local dropWeaponRemote = remoteEvents:WaitForChild("DropWeapon")
 local pickupWeaponRemote = remoteEvents:WaitForChild("PickupWeapon")
+local syncWeaponRemote = remoteEvents:WaitForChild("SyncWeapon")
 
 -- Initialize weapon service
 function WeaponService.Initialize()
+	-- Validate all weapon configurations at startup
+	WeaponService.ValidateAllWeaponConfigs()
+	
 	-- Set up remote event handlers
 	equipWeaponRemote.OnServerEvent:Connect(WeaponService.OnEquipWeapon)
 	dropWeaponRemote.OnServerEvent:Connect(WeaponService.OnDropWeapon)
@@ -54,7 +63,7 @@ function WeaponService.Initialize()
 	-- Set up cleanup loop
 	RunService.Heartbeat:Connect(WeaponService.CleanupDroppedWeapons)
 	
-	print("[WeaponService] ✓ Initialized")
+	logger:info("Weapon service initialized")
 end
 
 -- Handle player joining
@@ -149,13 +158,13 @@ function WeaponService.OnPickupWeapon(player: Player, weaponPart: BasePart, slot
 end
 
 -- Create weapon instance from config
-function WeaponService.CreateWeaponInstance(config: WeaponConfig): WeaponInstance
-	return {
+function WeaponService.CreateWeaponInstance(config: WeaponConfig, attachments: {[string]: AttachmentConfig}?): WeaponInstance
+	local weaponInstance: WeaponInstance = {
 		config = config,
 		attachments = {},
 		currentAmmo = config.stats.magazineSize,
 		totalAmmo = config.stats.maxAmmo - config.stats.magazineSize,
-		condition = 1.0, -- Full condition (0-1)
+		condition = CombatConstants.DEFAULT_WEAPON_CONDITION,
 		kills = 0,
 		experience = 0,
 		level = 1,
@@ -163,6 +172,57 @@ function WeaponService.CreateWeaponInstance(config: WeaponConfig): WeaponInstanc
 		isReloading = false,
 		owner = nil
 	}
+	
+	-- Apply attachment modifiers if provided
+	if attachments then
+		weaponInstance = WeaponService.ApplyAttachmentModifiers(weaponInstance, attachments)
+	end
+	
+	return weaponInstance
+end
+
+-- Apply attachment modifiers to weapon instance
+function WeaponService.ApplyAttachmentModifiers(weaponInstance: WeaponInstance, attachments: {[string]: AttachmentConfig}): WeaponInstance
+	-- Create a copy of the weapon stats to modify
+	local modifiedStats = {}
+	for key, value in pairs(weaponInstance.config.stats) do
+		modifiedStats[key] = value
+	end
+	
+	-- Apply each attachment's stat modifiers
+	for attachmentType, attachment in pairs(attachments) do
+		weaponInstance.attachments[attachmentType] = attachment.id
+		
+		-- Apply stat modifiers
+		for statName, modifier in pairs(attachment.statModifiers) do
+			if modifiedStats[statName] then
+				-- Apply modifier (could be additive or multiplicative based on design)
+				if statName == "damage" or statName == "fireRate" or statName == "magazineSize" then
+					-- Additive modifiers
+					modifiedStats[statName] = modifiedStats[statName] + modifier
+				elseif statName == "accuracy" or statName == "reloadTime" then
+					-- Multiplicative modifiers
+					modifiedStats[statName] = modifiedStats[statName] * (1 + modifier)
+				end
+			end
+		end
+	end
+	
+	-- Create new config with modified stats
+	local modifiedConfig = {}
+	for key, value in pairs(weaponInstance.config) do
+		modifiedConfig[key] = value
+	end
+	modifiedConfig.stats = modifiedStats
+	
+	weaponInstance.config = modifiedConfig
+	
+	logger:trace("Applied attachment modifiers", {
+		weaponId = weaponInstance.config.id,
+		attachmentCount = #attachments
+	})
+	
+	return weaponInstance
 end
 
 -- Equip weapon to player slot
@@ -263,35 +323,72 @@ function WeaponService.GiveLoadoutWeapons(player: Player)
 	local loadout = playerLoadouts[player]
 	if not loadout then return end
 	
-	-- Give primary weapon
+	-- Give primary weapon with self-healing
 	if loadout.primaryWeapon then
-		local weapon = WeaponService.CreateWeaponInstance(
-			WeaponConfig.GetWeaponConfig(loadout.primaryWeapon)
-		)
+		local weaponConfig = WeaponConfig.GetWeaponConfig(loadout.primaryWeapon)
+		if not weaponConfig then
+			logger:warn("Primary weapon config missing, using fallback", {
+				playerId = player.UserId,
+				requestedWeapon = loadout.primaryWeapon
+			})
+			weaponConfig = WeaponService.GetFallbackWeaponConfig()
+		end
+		local weapon = WeaponService.CreateWeaponInstance(weaponConfig)
 		WeaponService.EquipWeapon(player, weapon, 1)
 	end
 	
-	-- Give secondary weapon
+	-- Give secondary weapon with self-healing
 	if loadout.secondaryWeapon then
-		local weapon = WeaponService.CreateWeaponInstance(
-			WeaponConfig.GetWeaponConfig(loadout.secondaryWeapon)
-		)
+		local weaponConfig = WeaponConfig.GetWeaponConfig(loadout.secondaryWeapon)
+		if not weaponConfig then
+			logger:warn("Secondary weapon config missing, using fallback", {
+				playerId = player.UserId,
+				requestedWeapon = loadout.secondaryWeapon
+			})
+			weaponConfig = WeaponService.GetFallbackWeaponConfig()
+		end
+		local weapon = WeaponService.CreateWeaponInstance(weaponConfig)
 		WeaponService.EquipWeapon(player, weapon, 2)
 	end
 	
-	-- Give utility item
+	-- Give utility item with self-healing
 	if loadout.utilityItem then
-		local weapon = WeaponService.CreateWeaponInstance(
-			WeaponConfig.GetWeaponConfig(loadout.utilityItem)
-		)
-		WeaponService.EquipWeapon(player, weapon, 3)
+		local weaponConfig = WeaponConfig.GetWeaponConfig(loadout.utilityItem)
+		if not weaponConfig then
+			logger:warn("Utility item config missing, skipping", {
+				playerId = player.UserId,
+				requestedWeapon = loadout.utilityItem
+			})
+		else
+			local weapon = WeaponService.CreateWeaponInstance(weaponConfig)
+			WeaponService.EquipWeapon(player, weapon, 3)
+		end
 	end
 end
 
 -- Sync weapon data to client
 function WeaponService.SyncWeaponToClient(player: Player, weapon: WeaponInstance, slot: number)
-	-- TODO: Implement client synchronization
-	-- Send weapon data to client for UI updates and prediction
+	-- Send comprehensive weapon data to client for UI updates and prediction
+	local weaponData = {
+		weaponId = weapon.config.id,
+		slot = slot,
+		currentAmmo = weapon.currentAmmo,
+		totalAmmo = weapon.totalAmmo,
+		condition = weapon.condition,
+		attachments = weapon.attachments,
+		stats = weapon.config.stats,
+		lastFired = weapon.lastFired,
+		isReloading = weapon.isReloading
+	}
+	
+	-- Send to specific player
+	syncWeaponRemote:FireClient(player, weaponData)
+	
+	logger:trace("Synced weapon to client", {
+		playerId = player.UserId,
+		weaponId = weapon.config.id,
+		slot = slot
+	})
 end
 
 -- Get default loadout for new players
@@ -302,6 +399,80 @@ function WeaponService.GetDefaultLoadout(): LoadoutData
 		utilityItem = "GRENADE",
 		equipment = {}
 	}
+end
+
+-- Get safe fallback weapon config
+function WeaponService.GetFallbackWeaponConfig(): WeaponConfig
+	-- Return a basic pistol config as fallback
+	return {
+		id = "FALLBACK_PISTOL",
+		name = "Basic Pistol",
+		displayName = "Basic Pistol",
+		description = "Emergency fallback weapon",
+		category = "Pistol",
+		rarity = "Common",
+		stats = {
+			damage = 25,
+			headshotMultiplier = 2.0,
+			fireRate = 400,
+			reloadTime = 2.0,
+			magazineSize = 12,
+			maxAmmo = 48,
+			range = 100,
+			accuracy = 0.8,
+			recoilPattern = {Vector3.new(0, 2, 0)},
+			damageDropoff = {},
+			penetration = 0,
+			muzzleVelocity = 300,
+			weight = 1.5
+		},
+		attachmentSlots = {},
+		unlockLevel = 1,
+		cost = 0,
+		modelId = "",
+		iconId = "",
+		sounds = {
+			fire = "", dryFire = "", reload = "", reloadEmpty = "",
+			draw = "", holster = "", hit = "", miss = ""
+		},
+		animations = {
+			idle = "", fire = "", reload = "", reloadEmpty = "",
+			draw = "", holster = "", inspect = "", melee = ""
+		},
+		effects = {
+			muzzleFlash = "", shellEject = "", bulletTrail = "",
+			impactEffects = {}, smokePuff = ""
+		}
+	}
+end
+
+-- Validate all weapon configurations at startup
+function WeaponService.ValidateAllWeaponConfigs()
+	local allWeapons = WeaponConfig.GetAllWeapons()
+	local validCount = 0
+	local invalidCount = 0
+	
+	for weaponId, weaponConfig in pairs(allWeapons) do
+		if WeaponConfig.ValidateWeapon(weaponConfig) then
+			validCount = validCount + 1
+		else
+			invalidCount = invalidCount + 1
+			logger:error("Invalid weapon configuration detected", {
+				weaponId = weaponId,
+				weaponName = weaponConfig.name
+			})
+		end
+	end
+	
+	logger:info("Weapon configuration validation complete", {
+		validWeapons = validCount,
+		invalidWeapons = invalidCount,
+		totalWeapons = validCount + invalidCount
+	})
+	
+	if invalidCount > 0 then
+		logger:warn("Some weapon configurations are invalid and may cause issues")
+	end
 end
 
 -- Validation functions

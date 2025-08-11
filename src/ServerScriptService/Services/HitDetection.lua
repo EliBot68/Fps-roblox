@@ -11,23 +11,25 @@ local RunService = game:GetService("RunService")
 
 -- Import dependencies
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
-local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
+local WeaponConfigModule = require(ReplicatedStorage.Shared.WeaponConfig)
+local CombatConstants = require(ReplicatedStorage.Shared.CombatConstants)
+local Logger = require(ReplicatedStorage.Shared.Logger)
 local AntiCheatService = require(ServerStorage.Services.AntiCheatService)
 local AnalyticsService = require(ServerStorage.Services.AnalyticsService)
 
 type HitInfo = CombatTypes.HitInfo
-type WeaponStats = CombatTypes.WeaponStats
+type WeaponConfig = CombatTypes.WeaponConfig
 
 local HitDetection = {}
+local logger = Logger.new("HitDetection")
 
--- Configuration
+-- Use centralized constants
 local HIT_CONFIG = {
-	maxHitDistance = 1000, -- Maximum valid hit distance
-	hitboxExpansion = 0.2, -- Studs to expand hitboxes for lag compensation
-	maxLagCompensation = 0.2, -- Maximum seconds to compensate for lag
-	headHitboxMultiplier = 1.2,
-	penaltyMultiplier = 0.9, -- Damage reduction for penetration
-	minPenetrationThickness = 0.1 -- Minimum thickness to count as penetration
+	maxHitDistance = CombatConstants.MAX_HIT_DISTANCE,
+	hitboxExpansion = CombatConstants.HITBOX_EXPANSION,
+	maxLagCompensation = CombatConstants.LAG_COMPENSATION_WINDOW,
+	headHitboxMultiplier = CombatConstants.HEAD_HITBOX_MULTIPLIER,
+	minPenetrationThickness = CombatConstants.MIN_PENETRATION_THICKNESS
 }
 
 -- Hit validation cache
@@ -38,18 +40,18 @@ function HitDetection.Initialize()
 	-- Clean up old hit cache periodically
 	task.spawn(function()
 		while true do
-			task.wait(1)
+			task.wait(CombatConstants.CLEANUP_INTERVAL)
 			HitDetection.CleanupHitCache()
 		end
 	end)
 	
-	print("[HitDetection] ✓ Initialized")
+	logger:info("Hit detection system initialized")
 end
 
 -- Process and validate hit from client
 function HitDetection.ProcessHit(
 	shooter: Player,
-	weapon: WeaponStats,
+	weapon: WeaponConfig,
 	targetPosition: Vector3,
 	fireTime: number
 ): HitInfo
@@ -170,7 +172,7 @@ function HitDetection.PerformLagCompensatedRaycast(
 	local remainingDistance = maxDistance
 	local penetrationCount = 0
 	
-	while remainingDistance > 0 and penetrationCount < 3 do
+	while remainingDistance > 0 and penetrationCount < CombatConstants.MAX_PENETRATIONS do
 		local raycast = workspace:Raycast(currentPosition, direction * remainingDistance, raycastParams)
 		
 		if raycast then
@@ -221,25 +223,14 @@ end
 
 -- Check if part can be penetrated
 function HitDetection.CanPenetrate(part: BasePart): boolean
-	-- Check material penetrability
-	local material = part.Material
-	local penetrableMaterials = {
-		Enum.Material.Wood,
-		Enum.Material.Plastic,
-		Enum.Material.Glass,
-		Enum.Material.Ice,
-		Enum.Material.Cardboard
-	}
-	
-	for _, penetrableMaterial in pairs(penetrableMaterials) do
-		if material == penetrableMaterial then
-			return true
-		end
+	-- Check material penetrability using centralized constants
+	if CombatConstants.CanPenetrateMaterial(part.Material) then
+		return true
 	end
 	
 	-- Check thickness (thin parts can be penetrated)
 	local thickness = math.min(part.Size.X, part.Size.Y, part.Size.Z)
-	return thickness < 2 -- Can penetrate parts thinner than 2 studs
+	return thickness < CombatConstants.MAX_PENETRABLE_THICKNESS
 end
 
 -- Calculate object thickness for penetration
@@ -252,21 +243,38 @@ end
 
 -- Calculate final damage
 function HitDetection.CalculateDamage(
-	weapon: WeaponStats,
+	weapon: WeaponConfig,
 	distance: number,
 	isHeadshot: boolean,
 	penetrationCount: number
 ): number
-	
-	-- Base damage calculation
-	local damage = WeaponConfig.CalculateDamageAtDistance(weapon.id, distance, isHeadshot)
-	
-	-- Apply penetration penalty
-	if penetrationCount > 0 then
-		damage = damage * (HIT_CONFIG.penaltyMultiplier ^ penetrationCount)
+	local stats = weapon.stats
+	-- Base damage selection
+	local base = stats.damage
+	if isHeadshot then
+		base *= stats.headshotMultiplier
 	end
 	
-	return math.max(1, math.floor(damage))
+	-- Use centralized ordered distance falloff for deterministic results
+	local multiplier = CombatConstants.GetDamageMultiplierForDistance(distance)
+	
+	-- Penetration reduction using centralized constant
+	if penetrationCount > 0 then
+		multiplier *= math.pow(CombatConstants.PENETRATION_DAMAGE_REDUCTION, penetrationCount)
+	end
+	
+	local finalDamage = math.max(CombatConstants.MIN_DAMAGE, math.floor(base * multiplier))
+	
+	logger:trace("Damage calculated", {
+		weaponId = weapon.id,
+		baseDamage = base,
+		distance = distance,
+		isHeadshot = isHeadshot,
+		penetrationCount = penetrationCount,
+		finalDamage = finalDamage
+	})
+	
+	return finalDamage
 end
 
 -- Apply damage to player

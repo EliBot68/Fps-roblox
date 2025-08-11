@@ -12,6 +12,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Import types and dependencies
 local CombatTypes = require(ReplicatedStorage.Shared.CombatTypes)
+local CombatConstants = require(ReplicatedStorage.Shared.CombatConstants)
+local Logger = require(ReplicatedStorage.Shared.Logger)
 local WeaponService = require(script.Parent.WeaponService)
 local HitDetection = require(script.Parent.HitDetection)
 local AntiCheatValidator = require(script.Parent.AntiCheatValidator)
@@ -27,15 +29,16 @@ type ShotData = CombatTypes.ShotData
 type HitInfo = CombatTypes.HitInfo
 
 local CombatService = {}
+local logger = Logger.new("CombatService")
 
--- Configuration
+-- Configuration using centralized constants
 local COMBAT_CONFIG = {
-	maxShotDistance = 1000, -- studs
-	hitValidationWindow = 0.5, -- seconds
-	maxShotsPerSecond = 20,
-	lagCompensationWindow = 0.3, -- seconds
+	maxShotDistance = CombatConstants.MAX_SHOT_DISTANCE,
+	hitValidationWindow = CombatConstants.HIT_VALIDATION_WINDOW,
+	maxShotsPerSecond = CombatConstants.MAX_SHOTS_PER_SECOND,
+	lagCompensationWindow = CombatConstants.LAG_COMPENSATION_WINDOW,
 	antiCheatSensitivity = 0.8,
-	performanceMode = false -- auto-adjusts based on server load
+	performanceMode = false
 }
 
 -- State tracking
@@ -43,6 +46,10 @@ local playerCombatStates: {[number]: CombatState} = {}
 local activeShots: {[string]: ShotData} = {}
 local combatEvents: {CombatTypes.CombatEvent} = {}
 local lastCleanup = tick()
+
+-- Latency tracking for improved statistics
+local playerLatencies: {[number]: {number}} = {} -- Rolling latency samples per player
+local latencyStats: {[number]: {average: number, min: number, max: number}} = {}
 
 -- Remote events
 local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("CombatEvents")
@@ -64,12 +71,13 @@ function CombatService.Initialize()
 	Players.PlayerAdded:Connect(CombatService.OnPlayerAdded)
 	Players.PlayerRemoving:Connect(CombatService.OnPlayerRemoving)
 	
-	print("[CombatService] ✓ Initialized with anti-cheat validation")
+	logger:info("Combat service initialized with anti-cheat validation")
 end
 
 -- Handle player joining
 function CombatService.OnPlayerAdded(player: Player)
-	playerCombatStates[player.UserId] = {
+	local userId = player.UserId
+	playerCombatStates[userId] = {
 		equippedWeapons = {},
 		activeSlot = 1,
 		isInCombat = false,
@@ -86,12 +94,23 @@ function CombatService.OnPlayerAdded(player: Player)
 		accuracy = 0,
 		headshotRate = 0
 	}
+	
+	-- Initialize latency tracking
+	playerLatencies[userId] = {}
+	latencyStats[userId] = {average = 0, min = math.huge, max = 0}
+	
+	logger:debug("Player added to combat system", {playerId = userId, playerName = player.Name})
 end
 
 -- Handle player leaving
 function CombatService.OnPlayerRemoving(player: Player)
-	playerCombatStates[player.UserId] = nil
-	AntiCheatValidator.CleanupPlayer(player.UserId)
+	local userId = player.UserId
+	playerCombatStates[userId] = nil
+	playerLatencies[userId] = nil
+	latencyStats[userId] = nil
+	AntiCheatValidator.CleanupPlayer(userId)
+	
+	logger:debug("Player removed from combat system", {playerId = userId, playerName = player.Name})
 end
 
 -- Main update loop
@@ -101,8 +120,11 @@ function CombatService.Update()
 	-- Process ballistics
 	BallisticsEngine.Update()
 	
+	-- Update latency tracking
+	CombatService.UpdateLatencyTracking()
+	
 	-- Cleanup old data periodically
-	if currentTime - lastCleanup > 5.0 then
+	if currentTime - lastCleanup > CombatConstants.CLEANUP_INTERVAL then
 		CombatService.CleanupOldData()
 		lastCleanup = currentTime
 	end
@@ -111,14 +133,25 @@ function CombatService.Update()
 	AntiCheatValidator.Update()
 end
 
+local DEBUG = false
+local function Debug(...)
+	if DEBUG then
+		print("[CombatService]", ...)
+	end
+end
+
 -- Handle weapon fire request from client
 function CombatService.HandleWeaponFire(player: Player, weaponId: string, targetPosition: Vector3, clientTimestamp: number): {success: boolean, hitTarget: Player?, damage: number?}
 	local userId = player.UserId
 	local currentTime = tick()
 	
+	-- Track latency for this request
+	CombatService.RecordLatency(userId, currentTime - clientTimestamp)
+	
 	-- Validate player state
 	local combatState = playerCombatStates[userId]
 	if not combatState then
+		logger:warn("Invalid player state in weapon fire", {playerId = userId})
 		return {success = false, reason = "Invalid player state"}
 	end
 	
@@ -127,15 +160,30 @@ function CombatService.HandleWeaponFire(player: Player, weaponId: string, target
 		return {success = false, reason = "Rate limit exceeded"}
 	end
 	
-	-- Get equipped weapon
-	local weaponInstance = combatState.equippedWeapons[combatState.activeSlot]
+	-- Get equipped weapon (source of truth from WeaponService)
+	local weaponInstance = WeaponService.GetPlayerWeapon(player, combatState.activeSlot)
 	if not weaponInstance or weaponInstance.config.id ~= weaponId then
 		return {success = false, reason = "Weapon not equipped"}
+	end
+	
+	-- Server-side fire rate enforcement (in addition to AntiCheat)
+	local minInterval = 60 / weaponInstance.config.stats.fireRate
+	if weaponInstance.lastFired > 0 and (currentTime - weaponInstance.lastFired) < (minInterval * 0.95) then
+		return {success = false, reason = "Fire rate enforcement"}
 	end
 	
 	-- Check ammunition
 	if weaponInstance.currentAmmo <= 0 then
 		return {success = false, reason = "No ammunition"}
+	end
+	
+	-- Validate shot distance early
+	local char = player.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then
+		return {success = false, reason = "No character"}
+	end
+	if (targetPosition - char.HumanoidRootPart.Position).Magnitude > COMBAT_CONFIG.maxShotDistance then
+		return {success = false, reason = "Out of range"}
 	end
 	
 	-- Validate shot with lag compensation
@@ -165,7 +213,7 @@ function CombatService.HandleWeaponFire(player: Player, weaponId: string, target
 	local hitResult = HitDetection.ProcessShot(shotData)
 	
 	-- Consume ammunition
-	weaponInstance.currentAmmo = weaponInstance.currentAmmo - 1
+	weaponInstance.currentAmmo -= 1
 	weaponInstance.lastFired = currentTime
 	
 	-- Update combat state
@@ -214,12 +262,11 @@ function CombatService.HandleWeaponReload(player: Player, weaponId: string): {su
 		return {success = false, reason = "Invalid player state"}
 	end
 	
-	local weaponInstance = combatState.equippedWeapons[combatState.activeSlot]
+	local weaponInstance = WeaponService.GetPlayerWeapon(player, combatState.activeSlot)
 	if not weaponInstance or weaponInstance.config.id ~= weaponId then
 		return {success = false, reason = "Weapon not equipped"}
 	end
 	
-	-- Check if reload is needed
 	if weaponInstance.currentAmmo >= weaponInstance.config.stats.magazineSize then
 		return {success = false, reason = "Magazine full"}
 	end
@@ -266,26 +313,24 @@ end
 function CombatService.HandleWeaponEquip(player: Player, weaponId: string, slot: number)
 	local userId = player.UserId
 	local combatState = playerCombatStates[userId]
-	
 	if not combatState then return end
-	
-	-- Validate slot
 	if slot < 1 or slot > 3 then return end
-	
-	-- Get weapon from player's inventory
-	local weaponInstance = WeaponService.GetPlayerWeapon(userId, weaponId)
+	-- Retrieve weapon from WeaponService (slot-based)
+	local weaponInstance = WeaponService.GetPlayerWeapon(player, slot)
+	if not weaponInstance or weaponInstance.config.id ~= weaponId then
+		-- Weapon not present in that slot yet; attempt to locate by ID in any slot
+		for s = 1, 3 do
+			local w = WeaponService.GetPlayerWeapon(player, s)
+			if w and w.config.id == weaponId then
+				weaponInstance = w
+				break
+			end
+		end
+	end
 	if not weaponInstance then return end
-	
-	-- Equip weapon
 	combatState.equippedWeapons[slot] = weaponInstance
 	combatState.activeSlot = slot
-	
-	-- Notify clients
-	NetworkBatcher.QueueCombatEvent("Equip", {
-		playerId = userId,
-		weaponId = weaponId,
-		slot = slot
-	})
+	NetworkBatcher.QueueCombatEvent("Equip", { playerId = userId, weaponId = weaponId, slot = slot })
 end
 
 -- Process hit damage and effects
@@ -415,13 +460,18 @@ end
 function CombatService.GetStatistics(): {activePlayers: number, shotsPerSecond: number, averageLatency: number}
 	local activePlayers = 0
 	local recentShots = 0
+	local totalLatency = 0
+	local latencyCount = 0
 	local currentTime = tick()
 	
 	for userId, state in pairs(playerCombatStates) do
 		activePlayers = activePlayers + 1
 		
-		if state.isInCombat and currentTime - state.lastDamageTime < 10 then
-			-- Player was in combat recently
+		-- Add latency data
+		local playerLatencyStats = latencyStats[userId]
+		if playerLatencyStats and playerLatencyStats.average > 0 then
+			totalLatency = totalLatency + playerLatencyStats.average
+			latencyCount = latencyCount + 1
 		end
 	end
 	
@@ -432,11 +482,59 @@ function CombatService.GetStatistics(): {activePlayers: number, shotsPerSecond: 
 		end
 	end
 	
+	local averageLatency = latencyCount > 0 and (totalLatency / latencyCount) or 0
+	
 	return {
 		activePlayers = activePlayers,
 		shotsPerSecond = recentShots,
-		averageLatency = 0 -- TODO: implement latency tracking
+		averageLatency = averageLatency
 	}
+end
+
+-- Record latency sample for player
+function CombatService.RecordLatency(userId: number, latency: number)
+	if not playerLatencies[userId] then
+		playerLatencies[userId] = {}
+	end
+	
+	local samples = playerLatencies[userId]
+	table.insert(samples, latency)
+	
+	-- Keep only recent samples
+	if #samples > CombatConstants.LATENCY_SAMPLE_SIZE then
+		table.remove(samples, 1)
+	end
+	
+	-- Update rolling statistics
+	CombatService.UpdatePlayerLatencyStats(userId)
+end
+
+-- Update latency statistics for a player
+function CombatService.UpdatePlayerLatencyStats(userId: number)
+	local samples = playerLatencies[userId]
+	if not samples or #samples == 0 then return end
+	
+	local total = 0
+	local min = math.huge
+	local max = 0
+	
+	for _, latency in ipairs(samples) do
+		total = total + latency
+		min = math.min(min, latency)
+		max = math.max(max, latency)
+	end
+	
+	latencyStats[userId] = {
+		average = total / #samples,
+		min = min,
+		max = max
+	}
+end
+
+-- Update latency tracking for all players
+function CombatService.UpdateLatencyTracking()
+	-- This could be expanded to actively ping players for more accurate latency
+	-- For now, we rely on request timestamps
 end
 
 return CombatService
