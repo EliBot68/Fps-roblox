@@ -1,0 +1,90 @@
+--- a/StarterPlayerScripts/WeaponClient/WeaponClient.lua
++++ b/StarterPlayerScripts/WeaponClient/WeaponClient.lua
+@@ -60,20 +60,37 @@ local RECOIL_SETTINGS = {
+ 	ThrowingKnife = Vector3.new(2, 1, 0)
+ }
+ 
++-- Rate limiting and validation
++local CLIENT_FIRE_RATE_LIMIT = 30 -- Max 30 shots per second
++local lastFireRequests = {}
++
++-- Validate fire rate on client side (security layer)
++local function validateClientFireRate(weaponId: string): boolean
++	local currentTime = tick()
++	local requests = lastFireRequests[weaponId] or {}
++	
++	-- Clean old requests (older than 1 second)
++	for i = #requests, 1, -1 do
++		if currentTime - requests[i] > 1 then
++			table.remove(requests, i)
++		end
++	end
++	
++	-- Check rate limit
++	if #requests >= CLIENT_FIRE_RATE_LIMIT then
++		warn("Fire rate limit exceeded for weapon:", weaponId)
++		return false
++	end
++	
++	-- Add current request
++	table.insert(requests, currentTime)
++	lastFireRequests[weaponId] = requests
++	return true
++end
++
+ -- Handle weapon firing
+ function WeaponClient.FireWeapon()
+ 	local currentWeapon = CurrentWeapons[CurrentWeapons.CurrentSlot]
+ 	if not currentWeapon then return end
+ 	
++	-- Validate client-side fire rate
++	if not validateClientFireRate(currentWeapon) then
++		return
++	end
++	
+ 	local weapon = WeaponDefinitions.GetWeapon(currentWeapon)
+ 	if not weapon then return end
+ 	
+@@ -95,8 +112,16 @@ function WeaponClient.FireWeapon()
+ 	-- Get camera direction
+ 	local cameraCFrame = Camera.CFrame
+ 	local fireDirection = cameraCFrame.LookVector
++	
++	-- Validate camera direction (basic sanity check)
++	if fireDirection.Magnitude < 0.9 or fireDirection.Magnitude > 1.1 then
++		warn("Invalid fire direction detected:", fireDirection)
++		return
++	end
+ 	
+-	-- Send fire request to server
++	-- Send fire request to server with timestamp for server validation
++	-- Server should validate timing, position, and rate limiting
+ 	FireWeaponRemote:FireServer(currentWeapon, cameraCFrame, fireDirection, tick())
+ 	
+ 	-- Apply local recoil
+@@ -209,6 +234,12 @@ function WeaponClient.OnWeaponStateUpdate(data)
+ 	if data.Type == "AmmoUpdate" then
+ 		-- Update ammo count
+ 		CurrentWeapons.Ammo[data.WeaponId] = data.CurrentAmmo
++		
++		-- Validate ammo count from server
++		if type(data.CurrentAmmo) ~= "number" or data.CurrentAmmo < 0 then
++			warn("Invalid ammo count received from server:", data.CurrentAmmo)
++			return
++		end
+ 		WeaponClient.UpdateAmmoUI()
+ 		
+ 	elseif data.Type == "WeaponSwitched" then
+@@ -242,6 +273,12 @@ function WeaponClient.OnWeaponStateUpdate(data)
+ 		
+ 	else
+ 		-- Full weapon state update
++		-- Validate weapon state structure
++		if type(data) ~= "table" or not data.CurrentSlot then
++			warn("Invalid weapon state received from server")
++			return
++		end
++		
+ 		CurrentWeapons = data
+ 		local currentWeapon = CurrentWeapons[CurrentWeapons.CurrentSlot]
+ 		if currentWeapon then
